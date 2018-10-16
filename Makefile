@@ -1,5 +1,7 @@
-d9cc: d9cc.d
-	dmd -of=d9cc d9cc.d
+SRCS=$(wildcard *.d)
+
+d9cc: $(SRCS)
+	dmd -of=d9cc $(SRCS)
 test: d9cc
 	./test.sh
 clean:
