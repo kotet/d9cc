@@ -39,7 +39,7 @@ Token[] tokenize(string s)
             continue;
         }
 
-        if (s[i].among!('+', '-', '*'))
+        if (s[i].among!('+', '-', '*', '/'))
         {
             Token t;
             t.type = cast(TokenType) s[i];
