@@ -14,7 +14,9 @@ enum NodeType
 {
     NUM,
     ADD = '+',
-    SUB = '-'
+    SUB = '-',
+    MUL = '*',
+    DIV = '/'
 }
 
 struct Node
@@ -28,7 +30,7 @@ struct Node
 Node* expr(Token[] tokens)
 {
     size_t i;
-    Node* lhs = number(tokens, i);
+    Node* lhs = mul(tokens, i);
 
     while (true)
     {
@@ -38,11 +40,13 @@ Node* expr(Token[] tokens)
             break;
         }
         i++;
-        Node* new_lhs = new Node();
-        new_lhs.type = cast(NodeType) op;
-        new_lhs.lhs = lhs;
-        new_lhs.rhs = number(tokens, i);
-        lhs = new_lhs;
+        lhs = () {
+            Node* n = new Node();
+            n.type = cast(NodeType) op;
+            n.lhs = lhs;
+            n.rhs = mul(tokens, i);
+            return n;
+        }();
     }
     if (tokens[i].type != TokenType.EOF)
     {
@@ -52,6 +56,27 @@ Node* expr(Token[] tokens)
 }
 
 private:
+
+Node* mul(Token[] tokens, ref size_t i)
+{
+    Node* lhs = number(tokens, i);
+    while (true)
+    {
+        TokenType op = tokens[i].type;
+        if (op != TokenType.MUL && op != TokenType.DIV)
+        {
+            return lhs;
+        }
+        i++;
+        lhs = () {
+            Node* n = new Node();
+            n.type = cast(NodeType) op;
+            n.lhs = lhs;
+            n.rhs = number(tokens, i);
+            return n;
+        }();
+    }
+}
 
 Node* number(Token[] tokens, ref size_t i)
 {

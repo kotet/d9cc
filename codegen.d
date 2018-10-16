@@ -12,6 +12,7 @@ void generate_x86(IR[] ins)
 {
     foreach (ir; ins)
     {
+        // 計算結果はlhsのレジスタに格納
         switch (ir.op)
         {
         case IRType.IMM:
@@ -29,6 +30,12 @@ void generate_x86(IR[] ins)
             break;
         case IRType.SUB:
             writefln("  sub %s, %s", registers[ir.lhs], registers[ir.rhs]);
+            break;
+        case IRType.MUL:
+            // ここ写経元だとrhs *= lhsになってた
+            writefln("  mov rax, %s", registers[ir.lhs]);
+            writefln("  mul %s", registers[ir.rhs]);
+            writefln("  mov %s, rax", registers[ir.lhs]);
             break;
         case IRType.NOP:
             break;

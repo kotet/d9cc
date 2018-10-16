@@ -3,6 +3,7 @@ module token;
 import std.stdio : stderr;
 import std.uni : isSpace;
 import std.ascii : isDigit;
+import std.algorithm : among;
 
 import util;
 
@@ -13,6 +14,8 @@ enum TokenType
     NUM,
     ADD = '+',
     SUB = '-',
+    MUL = '*',
+    DIV = '/',
     EOF
 }
 
@@ -36,7 +39,7 @@ Token[] tokenize(string s)
             continue;
         }
 
-        if (s[i] == '+' || s[i] == '-')
+        if (s[i].among!('+', '-', '*'))
         {
             Token t;
             t.type = cast(TokenType) s[i];

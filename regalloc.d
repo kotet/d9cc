@@ -24,6 +24,7 @@ size_t[size_t] allocRegisters(ref IR[] ins)
         case IRType.MOV:
         case IRType.ADD:
         case IRType.SUB:
+        case IRType.MUL:
             ir.lhs = alloc(reg_map, used, ir.lhs);
             ir.rhs = alloc(reg_map, used, ir.rhs);
             break;

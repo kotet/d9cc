@@ -1,6 +1,8 @@
 /// 中間表現。レジスタは無限にあるものとして、レジスタの使い回しをしないコードを生成する
 module ir;
 
+import std.algorithm : among;
+
 import parse;
 
 // 5+20-4 -> 
@@ -23,7 +25,9 @@ enum IRType
     KILL, // lhsに指定されたレジスタを解放する
     NOP,
     ADD = '+',
-    SUB = '-'
+    SUB = '-',
+    MUL = '*',
+    DIV = '/',
 }
 
 struct IR
@@ -67,7 +71,7 @@ size_t genIRSub(ref IR[] ins, ref size_t regno, Node* node)
         return r;
     }
 
-    assert(node.type == NodeType.ADD || node.type == NodeType.SUB);
+    assert(node.type.among!(NodeType.ADD, NodeType.SUB, NodeType.MUL, NodeType.DIV));
 
     size_t lhs = genIRSub(ins, regno, node.lhs);
     size_t rhs = genIRSub(ins, regno, node.rhs);
