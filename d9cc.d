@@ -2,8 +2,6 @@ import std.stdio : writeln, writefln, stderr;
 import std.conv : to;
 import std.uni : isSpace;
 import std.ascii : isDigit;
-import std.array : join;
-import std.variant : Algebraic;
 
 enum TokenType
 {
@@ -136,39 +134,176 @@ Node* expr(Token[] tokens)
     return lhs;
 }
 
-// コード生成器
+// 中間表現。レジスタは無限にあるものとして、レジスタの使い回しをしないコードを生成する
+// 5+20-4 -> 
+// [IR(IMM, 0, 5), a = 5
+// IR(IMM, 1, 20), b = 20
+// IR(ADD, 0, 1), a += b
+// IR(KILL, 1, 0), free(b)
+// IR(IMM, 2, 4), c = 4
+// IR(SUB, 0, 2), a -= c
+// IR(KILL, 2, 0), free(c)
+// IR(RETURN, 0, 0)] ret
 
-static immutable string[] registers = ["rdi", "rsi", "r10", "r11", "r12", "r13", "r14", "r15"];
+enum IRType
+{
+    IMM, // IMmediate Move (即値move) の略? 
+    MOV,
+    RETURN,
+    KILL, // lhsに指定されたレジスタを解放する
+    NOP,
+    ADD = '+',
+    SUB = '-'
+}
 
-string generate(Node* node, ref size_t i)
+struct IR
+{
+    IRType op;
+    size_t lhs;
+    size_t rhs;
+}
+
+size_t genIRSub(ref IR[] ins, ref size_t regno, Node* node)
 {
     if (node.type == NodeType.NUM)
     {
-        if (i < registers.length)
-        {
-            string register = registers[i];
-            i++;
-            writefln("  mov %s, %d", register, node.val);
-            return register;
-        }
-        stderr.writeln("Register exhausted");
-        throw new ExitException(-1);
+        size_t r = regno;
+        regno++;
+
+        IR imm;
+        imm.op = IRType.IMM;
+        imm.lhs = r;
+        imm.rhs = node.val;
+
+        ins ~= imm;
+        return r;
     }
 
-    string dst = generate(node.lhs, i);
-    string src = generate(node.rhs, i);
+    assert(node.type == NodeType.ADD || node.type == NodeType.SUB);
 
-    switch (node.type)
+    size_t lhs = genIRSub(ins, regno, node.lhs);
+    size_t rhs = genIRSub(ins, regno, node.rhs);
+
+    ins ~= () {
+        IR ir;
+        ir.op = cast(IRType) node.type;
+        ir.lhs = lhs;
+        ir.rhs = rhs;
+        return ir;
+    }();
+    ins ~= () { IR ir; ir.op = IRType.KILL; ir.lhs = rhs; ir.rhs = 0; return ir; }();
+    return lhs;
+}
+
+IR[] genIR(Node* node)
+{
+    IR[] result;
+    size_t regno;
+
+    size_t r = genIRSub(result, regno, node);
+
+    IR ret;
+    ret.op = IRType.RETURN;
+    ret.lhs = r;
+    ret.rhs = 0;
+
+    result ~= ret;
+    return result;
+}
+
+static immutable string[] registers = ["rdi", "rsi", "r10", "r11", "r12", "r13", "r14", "r15"];
+
+// レジスタ割当
+
+/// 使われていないレジスタを探して中間表現のレジスタと紐付ける
+size_t alloc(ref size_t[size_t] reg_map, ref bool[] used, size_t ir_reg)
+{
+    if (ir_reg in reg_map)
     {
-    default:
-        throw new ExitException(-1);
-        break;
-    case NodeType.ADD:
-        writefln("  add %s, %s", dst, src);
-        return dst;
-    case NodeType.SUB:
-        writefln("  sub %s, %s", dst, src);
-        return dst;
+        size_t r = reg_map[ir_reg];
+        assert(used[r]);
+        return r;
+    }
+    foreach (i; 0 .. registers.length)
+    {
+        if (used[i])
+            continue;
+        used[i] = true;
+        reg_map[ir_reg] = i;
+        return i;
+    }
+    stderr.writeln("Register exhausted");
+    throw new ExitException(-1);
+}
+
+/// レジスタの解放
+void kill(ref bool[] used, size_t r)
+{
+    assert(used[r]);
+    used[r] = false;
+}
+
+size_t[size_t] allocRegisters(ref IR[] ins)
+{
+    size_t[size_t] reg_map;
+    bool[] used = new bool[](registers.length);
+    used[] = false;
+    foreach (ref ir; ins)
+    {
+        switch (ir.op)
+        {
+        case IRType.IMM:
+            ir.lhs = alloc(reg_map, used, ir.lhs);
+            break;
+        case IRType.MOV:
+        case IRType.ADD:
+        case IRType.SUB:
+            ir.lhs = alloc(reg_map, used, ir.lhs);
+            ir.rhs = alloc(reg_map, used, ir.rhs);
+            break;
+        case IRType.RETURN:
+            kill(used, reg_map[ir.lhs]);
+            break;
+        case IRType.KILL:
+            kill(used, reg_map[ir.lhs]);
+            ir.op = IRType.NOP; // レジスタ割当専用命令なので特に対応する命令はない
+            break;
+        default:
+            assert(0, "Unknown operator");
+        }
+    }
+    return reg_map;
+}
+
+// コード生成器
+
+void generate_x86(IR[] ins)
+{
+    foreach (ir; ins)
+    {
+        switch (ir.op)
+        {
+        case IRType.IMM:
+            writefln("  mov %s, %d", registers[ir.lhs], ir.rhs);
+            break;
+        case IRType.MOV:
+            writefln("  mov %s, %s", registers[ir.lhs], registers[ir.rhs]);
+            break;
+        case IRType.RETURN:
+            writefln("  mov rax, %s", registers[ir.lhs]);
+            writefln("  ret");
+            break;
+        case IRType.ADD:
+            writefln("  add %s, %s", registers[ir.lhs], registers[ir.rhs]);
+            break;
+        case IRType.SUB:
+            writefln("  sub %s, %s", registers[ir.lhs], registers[ir.rhs]);
+            break;
+        case IRType.NOP:
+            break;
+        default:
+            assert(0, "Unknown operator");
+        }
     }
 }
 
@@ -205,13 +340,15 @@ int main(string[] args)
 
         Node* node = expr(tokens);
 
+        IR[] ins = genIR(node);
+
+        size_t[size_t] reg_map = allocRegisters(ins);
+
         writeln(".intel_syntax noprefix"); // intel記法を使う
         writeln(".global main");
         writeln("main:");
 
-        writefln("  mov rax, %s", generate(node, i));
-
-        writeln("  ret");
+        generate_x86(ins);
         return 0;
     }
     catch (ExitException e)
