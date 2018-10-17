@@ -30,7 +30,7 @@ size_t[size_t] allocRegisters(ref IR[] ins)
             ir.rhs = alloc(reg_map, used, ir.rhs);
             break;
         case IRType.RETURN:
-            kill(used, reg_map[ir.lhs]);
+            ir.lhs = alloc(reg_map, used, ir.lhs);
             break;
         case IRType.KILL:
             kill(used, reg_map[ir.lhs]);

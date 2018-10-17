@@ -1,7 +1,7 @@
 import std.stdio : writeln, stderr;
 
 import token;
-import parse;
+import parser;
 import ir;
 import regalloc;
 import codegen;
@@ -19,9 +19,8 @@ int main(string[] args)
     try
     {
         Token[] tokens = tokenize(args[1]);
-        size_t i;
 
-        Node* node = expr(tokens);
+        Node* node = parse(tokens);
 
         IR[] ins = genIR(node);
 

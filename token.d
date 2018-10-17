@@ -2,7 +2,7 @@ module token;
 
 import std.stdio : stderr;
 import std.uni : isSpace;
-import std.ascii : isDigit;
+import std.ascii : isDigit, isAlpha;
 import std.algorithm : among;
 
 import util;
@@ -16,6 +16,8 @@ enum TokenType
     SUB = '-',
     MUL = '*',
     DIV = '/',
+    RETURN,
+    SEMICOLONE = ';',
     EOF
 }
 
@@ -30,6 +32,8 @@ Token[] tokenize(string s)
 {
     Token[] result;
     size_t i;
+    TokenType[string] keywords;
+    keywords["return"] = TokenType.RETURN;
 
     while (i < s.length) // Dの文字列はNull終端ではない
     {
@@ -39,7 +43,7 @@ Token[] tokenize(string s)
             continue;
         }
 
-        if (s[i].among!('+', '-', '*', '/'))
+        if (s[i].among!('+', '-', '*', '/', ';'))
         {
             Token t;
             t.type = cast(TokenType) s[i];
@@ -62,8 +66,30 @@ Token[] tokenize(string s)
             continue;
         }
 
-        stderr.writefln("Cannot tokenize: %s", s[i]);
-        throw new ExitException(-1);
+        if (s[i].isAlpha || s[i] == '_')
+        {
+            size_t len = 1;
+            while (s[i + len].isAlpha || s[i + len].isDigit || s[i + len] == '_')
+            {
+                len++;
+            }
+            string name = s[i .. i + len];
+
+            if (name in keywords)
+            {
+                result ~= () {
+                    Token t;
+                    t.type = keywords[name];
+                    t.input = name;
+                    return t;
+                }();
+                i += len;
+                continue;
+            }
+            error("Unknown identifier: %s", name);
+        }
+
+        error("Cannot tokenize: %s", s[i]);
     }
 
     result ~= () { Token t; t.type = TokenType.EOF; return t; }();

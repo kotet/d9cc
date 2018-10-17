@@ -1,6 +1,7 @@
 module util;
 
 import std.ascii : isDigit;
+import std.stdio : stderr;
 
 public:
 
@@ -27,4 +28,10 @@ class ExitException : Exception
         super(null, file, line);
         this.rc = return_code;
     }
+}
+
+void error(A...)(string msg, A args)
+{
+    stderr.writefln(msg, args);
+    throw new ExitException(-1);
 }

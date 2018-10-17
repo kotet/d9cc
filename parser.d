@@ -1,5 +1,5 @@
 /// 再帰下降構文解析器
-module parse;
+module parser;
 
 import std.stdio : stderr;
 
@@ -16,7 +16,10 @@ enum NodeType
     ADD = '+',
     SUB = '-',
     MUL = '*',
-    DIV = '/'
+    DIV = '/',
+    RETURN,
+    COMPOUND_STATEMENT,
+    EXPRESSION_STATEMENT
 }
 
 struct Node
@@ -24,12 +27,61 @@ struct Node
     NodeType type;
     Node* lhs = null;
     Node* rhs = null;
-    int val;
+    int val; // 値リテラル
+    Node* expr; // 式
+    Node[] statements; // 文
 }
 
-Node* expr(Token[] tokens)
+Node* parse(Token[] tokens)
 {
     size_t i;
+    return stmt(tokens, i);
+}
+
+private:
+
+void expect(char c, Token[] tokens, ref size_t i)
+{
+    if (tokens[i].type != (cast(TokenType) c))
+    {
+        error("%s (%s) expected, but got %s (%s)", c, cast(TokenType) c,
+                tokens[i].input, tokens[i].type);
+    }
+    i++;
+}
+
+Node* stmt(Token[] tokens, ref size_t i)
+{
+    Node* node = new Node();
+    node.type = NodeType.COMPOUND_STATEMENT;
+    while (true)
+    {
+        Token t = tokens[i];
+        if (t.type == TokenType.EOF)
+        {
+            return node;
+        }
+        Node e;
+
+        if (t.type == TokenType.RETURN) // return ... ;
+        {
+            i++;
+            e.type = NodeType.RETURN;
+            e.expr = expr(tokens, i);
+        }
+        else
+        {
+            e.type = NodeType.EXPRESSION_STATEMENT;
+            e.expr = expr(tokens, i);
+        }
+        node.statements ~= e;
+        expect(';', tokens, i);
+    }
+    return node;
+}
+
+Node* expr(Token[] tokens, ref size_t i)
+{
     Node* lhs = mul(tokens, i);
 
     while (true)
@@ -37,7 +89,7 @@ Node* expr(Token[] tokens)
         TokenType op = tokens[i].type;
         if (op != TokenType.ADD && op != TokenType.SUB)
         {
-            break;
+            return lhs;
         }
         i++;
         lhs = () {
@@ -48,18 +100,12 @@ Node* expr(Token[] tokens)
             return n;
         }();
     }
-    if (tokens[i].type != TokenType.EOF)
-    {
-        stderr.writefln("Stray token: %s", tokens[i].input);
-    }
-    return lhs;
 }
-
-private:
 
 Node* mul(Token[] tokens, ref size_t i)
 {
     Node* lhs = number(tokens, i);
+
     while (true)
     {
         TokenType op = tokens[i].type;
@@ -88,6 +134,6 @@ Node* number(Token[] tokens, ref size_t i)
         i++;
         return n;
     }
-    stderr.writefln("Number expected, but got %s", tokens[i].input);
-    throw new ExitException(-1);
+    error("Number expected, but got %s", tokens[i].input);
+    assert(0);
 }
