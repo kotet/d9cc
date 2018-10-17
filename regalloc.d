@@ -19,6 +19,8 @@ size_t[size_t] allocRegisters(ref IR[] ins)
         switch (ir.op)
         {
         case IRType.IMM:
+        case IRType.ALLOCA:
+        case IRType.RETURN:
             ir.lhs = alloc(reg_map, used, ir.lhs);
             break;
         case IRType.MOV:
@@ -26,18 +28,18 @@ size_t[size_t] allocRegisters(ref IR[] ins)
         case IRType.SUB:
         case IRType.MUL:
         case IRType.DIV:
+        case IRType.LOAD:
+        case IRType.STORE:
             ir.lhs = alloc(reg_map, used, ir.lhs);
             ir.rhs = alloc(reg_map, used, ir.rhs);
-            break;
-        case IRType.RETURN:
-            ir.lhs = alloc(reg_map, used, ir.lhs);
             break;
         case IRType.KILL:
             kill(used, reg_map[ir.lhs]);
             ir.op = IRType.NOP; // レジスタ割当専用命令なので特に対応する命令はない
             break;
         default:
-            assert(0, "Unknown operator");
+            error("Unknown operator: %s", ir.op);
+            assert(0);
         }
     }
     return reg_map;

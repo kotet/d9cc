@@ -2,6 +2,7 @@
 module ir;
 
 import std.algorithm : among;
+import std.stdio : stderr;
 
 import parser;
 import util;
@@ -25,6 +26,9 @@ enum IRType
     RETURN,
     KILL, // lhsに指定されたレジスタを解放する
     NOP,
+    ALLOCA,
+    LOAD,
+    STORE,
     ADD = '+',
     SUB = '-',
     MUL = '*',
@@ -34,40 +38,47 @@ enum IRType
 struct IR
 {
     IRType op;
-    size_t lhs;
-    size_t rhs;
+    long lhs;
+    long rhs;
 }
 
 IR[] genIR(Node* node)
 {
-    size_t regno;
-    IR[] result = genStatement(regno, node);
+    long regno = 1;
+    long basereg;
+    long bpoff; // 使うメモリ領域のサイズ
+    long[string] vars;
+    IR[] result;
+    result ~= IR(IRType.ALLOCA, basereg, 0);
+    result ~= genStatement(regno, bpoff, basereg, vars, node);
+    result[0].rhs = bpoff;
     return result;
 }
 
 private:
 
-IR[] genStatement(ref size_t regno, Node* node)
+IR[] genStatement(ref long regno, ref long bpoff, ref long basereg, ref long[string] vars,
+        Node* node)
 {
     IR[] result;
     if (node.type == NodeType.RETURN)
     {
-        size_t r = genExpression(result, regno, node.expr);
-        result ~= IR(IRType.RETURN, r, 0);
-        result ~= IR(IRType.KILL, r, 0);
+        long r = genExpression(result, regno, bpoff, basereg, vars, node.expr);
+        result ~= IR(IRType.RETURN, r, -1);
+        result ~= IR(IRType.KILL, r, -1);
         return result;
     }
     if (node.type == NodeType.EXPRESSION_STATEMENT)
     {
-        size_t r = genExpression(result, regno, node.expr);
-        result ~= IR(IRType.KILL, r, 0);
+        long r = genExpression(result, regno, bpoff, basereg, vars, node.expr);
+        result ~= IR(IRType.KILL, r, -1);
         return result;
     }
     if (node.type == NodeType.COMPOUND_STATEMENT)
     {
         foreach (n; node.statements)
         {
-            result ~= genStatement(regno, &n);
+            result ~= genStatement(regno, bpoff, basereg, vars, &n);
         }
         return result;
     }
@@ -75,22 +86,66 @@ IR[] genStatement(ref size_t regno, Node* node)
     assert(0);
 }
 
-size_t genExpression(ref IR[] ins, ref size_t regno, Node* node)
+long genExpression(ref IR[] ins, ref long regno, ref long bpoff, ref long basereg,
+        ref long[string] vars, Node* node)
 {
     if (node.type == NodeType.NUM)
     {
-        size_t r = regno;
+        long r = regno;
         regno++;
         ins ~= IR(IRType.IMM, r, node.val);
         return r;
     }
 
+    if (node.type == NodeType.IDENTIFIER)
+    {
+        long r = genLval(ins, regno, bpoff, basereg, vars, node);
+        ins ~= IR(IRType.LOAD, r, r);
+        return r;
+    }
+
+    if (node.type == NodeType.ASSIGN)
+    {
+        long rhs = genExpression(ins, regno, bpoff, basereg, vars, node.rhs);
+        long lhs = genLval(ins, regno, bpoff, basereg, vars, node.lhs);
+        ins ~= IR(IRType.STORE, lhs, rhs);
+        ins ~= IR(IRType.KILL, rhs, -1);
+        return lhs;
+    }
+
     assert(node.type.among!(NodeType.ADD, NodeType.SUB, NodeType.MUL, NodeType.DIV));
 
-    size_t lhs = genExpression(ins, regno, node.lhs);
-    size_t rhs = genExpression(ins, regno, node.rhs);
+    long lhs = genExpression(ins, regno, bpoff, basereg, vars, node.lhs);
+    long rhs = genExpression(ins, regno, bpoff, basereg, vars, node.rhs);
 
     ins ~= IR(cast(IRType) node.type, lhs, rhs);
-    ins ~= IR(IRType.KILL, rhs, 0);
+    ins ~= IR(IRType.KILL, rhs, -1);
     return lhs;
+}
+
+long genLval(ref IR[] ins, ref long regno, ref long bpoff, ref long basereg,
+        ref long[string] vars, Node* node)
+{
+    if (node.type != NodeType.IDENTIFIER)
+    {
+        error("Not an lvalue: ", node);
+    }
+    if (!(node.name in vars))
+    {
+        vars[node.name] = bpoff;
+        bpoff += 8;
+    }
+
+    long r1 = regno;
+    regno++;
+    long off = vars[node.name];
+
+    ins ~= IR(IRType.MOV, r1, basereg);
+
+    long r2 = regno;
+    regno++;
+    ins ~= IR(IRType.IMM, r2, off);
+    ins ~= IR(IRType.ADD, r1, r2);
+    ins ~= IR(IRType.KILL, r2, -1);
+    return r1;
 }

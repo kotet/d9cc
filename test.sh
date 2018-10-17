@@ -30,6 +30,9 @@ try 26 'return 2*3+4*5;'
 try 5 'return 50/10;'
 try 9 'return 6*3/2;'
 
+try 2 'a = 2; return a;'
+try 10 'a=2;b=3+2;return a*b;'
+
 echo "＿人人人＿"
 echo "＞　OK　＜"
 echo "￣Y^Y^Y^￣"

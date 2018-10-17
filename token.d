@@ -12,12 +12,14 @@ public:
 enum TokenType
 {
     NUM,
+    IDENTIFIER,
     ADD = '+',
     SUB = '-',
     MUL = '*',
     DIV = '/',
     RETURN,
     SEMICOLONE = ';',
+    ASSIGN = '=',
     EOF
 }
 
@@ -25,6 +27,7 @@ struct Token
 {
     TokenType type;
     int val; // 数値リテラルデータ
+    string name; // 変数名
     string input; // エラー報告用のトークン文字列
 }
 
@@ -43,7 +46,7 @@ Token[] tokenize(string s)
             continue;
         }
 
-        if (s[i].among!('+', '-', '*', '/', ';'))
+        if (s[i].among!('+', '-', '*', '/', ';', '='))
         {
             Token t;
             t.type = cast(TokenType) s[i];
@@ -86,7 +89,15 @@ Token[] tokenize(string s)
                 i += len;
                 continue;
             }
-            error("Unknown identifier: %s", name);
+            result ~= () {
+                Token t;
+                t.type = TokenType.IDENTIFIER;
+                t.name = name;
+                t.input = name;
+                return t;
+            }();
+            i += len;
+            continue;
         }
 
         error("Cannot tokenize: %s", s[i]);

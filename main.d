@@ -24,6 +24,8 @@ int main(string[] args)
 
         IR[] ins = genIR(node);
 
+        // stderr.writeln(ins);
+
         size_t[size_t] reg_map = allocRegisters(ins);
 
         writeln(".intel_syntax noprefix"); // intel記法を使う

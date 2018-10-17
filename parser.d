@@ -13,10 +13,12 @@ public:
 enum NodeType
 {
     NUM,
+    IDENTIFIER,
     ADD = '+',
     SUB = '-',
     MUL = '*',
     DIV = '/',
+    ASSIGN = '=',
     RETURN,
     COMPOUND_STATEMENT,
     EXPRESSION_STATEMENT
@@ -28,6 +30,7 @@ struct Node
     Node* lhs = null;
     Node* rhs = null;
     int val; // 値リテラル
+    string name; // 変数名
     Node* expr; // 式
     Node[] statements; // 文
 }
@@ -50,6 +53,16 @@ void expect(char c, Token[] tokens, ref size_t i)
     i++;
 }
 
+bool consume(TokenType type, Token[] tokens, ref size_t i)
+{
+    if (tokens[i].type == type)
+    {
+        i++;
+        return true;
+    }
+    return false;
+}
+
 Node* stmt(Token[] tokens, ref size_t i)
 {
     Node* node = new Node();
@@ -67,17 +80,34 @@ Node* stmt(Token[] tokens, ref size_t i)
         {
             i++;
             e.type = NodeType.RETURN;
-            e.expr = expr(tokens, i);
+            e.expr = assign(tokens, i);
         }
         else
         {
             e.type = NodeType.EXPRESSION_STATEMENT;
-            e.expr = expr(tokens, i);
+            e.expr = assign(tokens, i);
         }
         node.statements ~= e;
         expect(';', tokens, i);
     }
     return node;
+}
+
+Node* assign(Token[] tokens, ref size_t i)
+{
+    Node* lhs = expr(tokens, i);
+
+    if (consume(TokenType.ASSIGN, tokens, i))
+    {
+        return () {
+            Node* n = new Node();
+            n.type = NodeType.ASSIGN;
+            n.lhs = lhs;
+            n.rhs = expr(tokens, i);
+            return n;
+        }();
+    }
+    return lhs;
 }
 
 Node* expr(Token[] tokens, ref size_t i)
@@ -104,7 +134,7 @@ Node* expr(Token[] tokens, ref size_t i)
 
 Node* mul(Token[] tokens, ref size_t i)
 {
-    Node* lhs = number(tokens, i);
+    Node* lhs = term(tokens, i);
 
     while (true)
     {
@@ -118,13 +148,13 @@ Node* mul(Token[] tokens, ref size_t i)
             Node* n = new Node();
             n.type = cast(NodeType) op;
             n.lhs = lhs;
-            n.rhs = number(tokens, i);
+            n.rhs = term(tokens, i);
             return n;
         }();
     }
 }
 
-Node* number(Token[] tokens, ref size_t i)
+Node* term(Token[] tokens, ref size_t i)
 {
     if (tokens[i].type == TokenType.NUM)
     {
@@ -134,6 +164,16 @@ Node* number(Token[] tokens, ref size_t i)
         i++;
         return n;
     }
+
+    if (tokens[i].type == TokenType.IDENTIFIER)
+    {
+        Node* n = new Node();
+        n.type = NodeType.IDENTIFIER;
+        n.name = tokens[i].name;
+        i++;
+        return n;
+    }
+
     error("Number expected, but got %s", tokens[i].input);
     assert(0);
 }
