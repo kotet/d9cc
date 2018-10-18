@@ -29,6 +29,7 @@ enum IRType
     ALLOCA,
     LOAD,
     STORE,
+    ADD_IMM, // 即値add
     ADD = '+',
     SUB = '-',
     MUL = '*',
@@ -136,16 +137,10 @@ long genLval(ref IR[] ins, ref long regno, ref long bpoff, ref long basereg,
         bpoff += 8;
     }
 
-    long r1 = regno;
+    long r = regno;
     regno++;
     long off = vars[node.name];
-
-    ins ~= IR(IRType.MOV, r1, basereg);
-
-    long r2 = regno;
-    regno++;
-    ins ~= IR(IRType.IMM, r2, off);
-    ins ~= IR(IRType.ADD, r1, r2);
-    ins ~= IR(IRType.KILL, r2, -1);
-    return r1;
+    ins ~= IR(IRType.MOV, r, basereg);
+    ins ~= IR(IRType.ADD_IMM, r, off);
+    return r;
 }

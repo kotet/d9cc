@@ -45,6 +45,9 @@ void generate_x86(IR[] ins)
         case IRType.STORE:
             writefln("  mov [%s], %s", registers[ir.lhs], registers[ir.rhs]);
             break;
+        case IRType.ADD_IMM:
+            writefln("  add %s, %d", registers[ir.lhs], ir.rhs);
+            break;
         case IRType.ADD:
             writefln("  add %s, %s", registers[ir.lhs], registers[ir.rhs]);
             break;
@@ -71,7 +74,6 @@ void generate_x86(IR[] ins)
         default:
             assert(0, "Unknown operator");
         }
-        writefln("");
     }
 
     writefln("%s:", ret);
