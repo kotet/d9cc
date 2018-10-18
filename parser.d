@@ -156,6 +156,15 @@ Node* mul(Token[] tokens, ref size_t i)
 
 Node* term(Token[] tokens, ref size_t i)
 {
+
+    if (tokens[i].type == TokenType.LEFT_PARENTHESES)
+    {
+        i++;
+        Node* n = assign(tokens, i);
+        expect(')', tokens, i);
+        return n;
+    }
+
     if (tokens[i].type == TokenType.NUM)
     {
         Node* n = new Node();
