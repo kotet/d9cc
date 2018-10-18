@@ -12,7 +12,7 @@ public:
 void generate_x86(IR[] ins)
 {
     size_t labelcnt;
-    string ret = genLabel(labelcnt);
+    string ret = ".Lend";
 
     writefln("  push rbp");
     writefln("  mov rbp, rsp");
@@ -33,6 +33,7 @@ void generate_x86(IR[] ins)
             writefln("  jmp %s", ret);
             break;
         case IRType.ALLOCA:
+            // スタックはアドレスの小さい方に伸びていく
             if (ir.rhs != -1)
             {
                 writefln("  sub rsp, %d", ir.rhs);
@@ -68,6 +69,15 @@ void generate_x86(IR[] ins)
             // raxに商、rdxに剰余が入る
             writefln("  div %s", registers[ir.rhs]);
             writefln("  mov %s, rax", registers[ir.lhs]);
+            break;
+        case IRType.LABEL:
+            writefln(".L%d:", ir.lhs);
+            break;
+        case IRType.UNLESS:
+            // 右辺(この場合0)との差が0ならゼロフラグが1になる
+            writefln("  cmp %s, 0", registers[ir.lhs]);
+            // ゼロフラグが1ならジャンプ
+            writefln("  je .L%d", ir.rhs);
             break;
         case IRType.NOP:
             break;

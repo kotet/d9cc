@@ -13,16 +13,17 @@ enum TokenType
 {
     NUM,
     IDENTIFIER,
+    RETURN,
+    IF,
+    EOF,
     ADD = '+',
     SUB = '-',
     MUL = '*',
     DIV = '/',
-    RETURN,
     SEMICOLONE = ';',
     ASSIGN = '=',
     LEFT_PARENTHESES = '(',
     RIGHT_PARENTHESES = ')',
-    EOF
 }
 
 struct Token
@@ -39,6 +40,7 @@ Token[] tokenize(string s)
     size_t i;
     TokenType[string] keywords;
     keywords["return"] = TokenType.RETURN;
+    keywords["if"] = TokenType.IF;
 
     while (i < s.length) // Dの文字列はNull終端ではない
     {

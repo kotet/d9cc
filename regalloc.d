@@ -16,31 +16,24 @@ size_t[size_t] allocRegisters(ref IR[] ins)
     used[] = false;
     foreach (ref ir; ins)
     {
-        switch (ir.op)
+        switch (ir.getInfo())
         {
-        case IRType.IMM:
-        case IRType.ALLOCA:
-        case IRType.RETURN:
+        case IRInfo.REG:
+        case IRInfo.REG_LABEL:
+        case IRInfo.REG_IMM:
             ir.lhs = alloc(reg_map, used, ir.lhs);
             break;
-        case IRType.MOV:
-        case IRType.ADD:
-        case IRType.SUB:
-        case IRType.MUL:
-        case IRType.DIV:
-        case IRType.LOAD:
-        case IRType.STORE:
-        case IRType.ADD_IMM:
+        case IRInfo.REG_REG:
             ir.lhs = alloc(reg_map, used, ir.lhs);
             ir.rhs = alloc(reg_map, used, ir.rhs);
             break;
-        case IRType.KILL:
-            kill(used, reg_map[ir.lhs]);
-            ir.op = IRType.NOP; // レジスタ割当専用命令なので特に対応する命令はない
-            break;
         default:
-            error("Unknown operator: %s", ir.op);
-            assert(0);
+            break;
+        }
+        if (ir.op == IRType.KILL)
+        {
+            kill(used, ir.lhs);
+            ir.op = IRType.NOP; // レジスタ割当専用命令なので特に対応する命令はない
         }
     }
     return reg_map;

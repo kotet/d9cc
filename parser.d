@@ -14,14 +14,15 @@ enum NodeType
 {
     NUM,
     IDENTIFIER,
+    RETURN,
+    IF,
+    COMPOUND_STATEMENT,
+    EXPRESSION_STATEMENT,
     ADD = '+',
     SUB = '-',
     MUL = '*',
     DIV = '/',
     ASSIGN = '=',
-    RETURN,
-    COMPOUND_STATEMENT,
-    EXPRESSION_STATEMENT
 }
 
 struct Node
@@ -33,12 +34,16 @@ struct Node
     string name; // 変数名
     Node* expr; // 式
     Node[] statements; // 文
+
+    // if用
+    Node* cond;
+    Node* then;
 }
 
 Node* parse(Token[] tokens)
 {
     size_t i;
-    return stmt(tokens, i);
+    return compound_stmt(tokens, i);
 }
 
 private:
@@ -63,34 +68,46 @@ bool consume(TokenType type, Token[] tokens, ref size_t i)
     return false;
 }
 
+Node* compound_stmt(Token[] tokens, ref size_t i)
+{
+    Node* n = new Node();
+    n.type = NodeType.COMPOUND_STATEMENT;
+    while (true)
+    {
+        if (tokens[i].type == TokenType.EOF)
+        {
+            return n;
+        }
+        n.statements ~= *stmt(tokens, i);
+    }
+}
+
 Node* stmt(Token[] tokens, ref size_t i)
 {
     Node* node = new Node();
-    node.type = NodeType.COMPOUND_STATEMENT;
-    while (true)
+    switch (tokens[i].type)
     {
-        Token t = tokens[i];
-        if (t.type == TokenType.EOF)
-        {
-            return node;
-        }
-        Node e;
-
-        if (t.type == TokenType.RETURN) // return ... ;
-        {
-            i++;
-            e.type = NodeType.RETURN;
-            e.expr = assign(tokens, i);
-        }
-        else
-        {
-            e.type = NodeType.EXPRESSION_STATEMENT;
-            e.expr = assign(tokens, i);
-        }
-        node.statements ~= e;
+    case TokenType.IF:
+        i++;
+        node.type = NodeType.IF;
+        expect('(', tokens, i);
+        node.cond = assign(tokens, i);
+        expect(')', tokens, i);
+        node.then = stmt(tokens, i);
+        return node;
+    case TokenType.RETURN:
+        i++;
+        node.type = NodeType.RETURN;
+        node.expr = assign(tokens, i);
         expect(';', tokens, i);
+        return node;
+    default:
+        node.type = NodeType.EXPRESSION_STATEMENT;
+        node.expr = assign(tokens, i);
+        expect(';', tokens, i);
+        return node;
     }
-    return node;
+
 }
 
 Node* assign(Token[] tokens, ref size_t i)
