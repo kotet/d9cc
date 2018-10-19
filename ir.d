@@ -34,6 +34,7 @@ enum IRType
     LABEL,
     UNLESS,
     JMP,
+    CALL,
     ADD = '+',
     SUB = '-',
     MUL = '*',
@@ -48,6 +49,7 @@ enum IRInfo
     REG_REG,
     REG_IMM,
     REG_LABEL,
+    CALL,
 }
 
 struct IR
@@ -55,6 +57,10 @@ struct IR
     IRType op;
     long lhs;
     long rhs;
+
+    // 関数呼び出し
+    string name;
+    long[] args;
 
     IRInfo getInfo()
     {
@@ -80,6 +86,8 @@ struct IR
             return IRInfo.LABEL;
         case IRType.UNLESS:
             return IRInfo.REG_LABEL;
+        case IRType.CALL:
+            return IRInfo.CALL;
         case IRType.NOP:
             return IRInfo.NOARG;
         default:
@@ -104,6 +112,12 @@ struct IR
             return format("%s\tr%d\t.L%s", this.op, this.lhs, this.rhs);
         case IRInfo.NOARG:
             return format("%s", this.op);
+        case IRInfo.CALL:
+            string s = format("r%d = %s(", this.lhs, this.name);
+            foreach (arg; this.args)
+                s ~= format("\tr%d", arg);
+            s ~= ")";
+            return s;
         default:
             assert(0);
         }
@@ -203,6 +217,23 @@ long genExpression(ref IR[] ins, ref long regno, ref long bpoff, ref long basere
         ins ~= IR(IRType.STORE, lhs, rhs);
         ins ~= IR(IRType.KILL, rhs, -1);
         return lhs;
+    }
+
+    if (node.type == NodeType.CALL)
+    {
+        IR ir;
+        ir.op = IRType.CALL;
+        foreach (arg; node.args)
+            ir.args ~= genExpression(ins, regno, bpoff, basereg, label, vars, &arg);
+
+        long r = regno;
+        regno++;
+        ir.lhs = r;
+        ir.name = node.name;
+        ins ~= ir;
+        foreach (reg; ir.args)
+            ins ~= IR(IRType.KILL, reg, -1);
+        return r;
     }
 
     assert(node.type.among!(NodeType.ADD, NodeType.SUB, NodeType.MUL, NodeType.DIV));

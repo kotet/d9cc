@@ -5,7 +5,7 @@ try() {
     input="$2"
 
     ./d9cc "$input" > tmp.s
-    gcc -static -o tmp tmp.s
+    gcc -static -o tmp tmp.s tmp-plus.o
     ./tmp
     actual="$?"
 
@@ -40,6 +40,8 @@ try 3 'if (0) return 2;return 3;'
 
 try 2 'if (1) a=2;else a=3;return a;'
 try 3 'if (0) a=2;else a=3;return a;'
+
+try 5 'return plus(2,3);'
 
 echo "＿人人人＿"
 echo "＞　OK　＜"

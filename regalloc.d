@@ -27,6 +27,11 @@ size_t[size_t] allocRegisters(ref IR[] ins)
             ir.lhs = alloc(reg_map, used, ir.lhs);
             ir.rhs = alloc(reg_map, used, ir.rhs);
             break;
+        case IRInfo.CALL:
+            ir.lhs = alloc(reg_map, used, ir.lhs);
+            foreach (i, r; ir.args)
+                ir.args[i] = alloc(reg_map, used, r);
+            break;
         default:
             break;
         }

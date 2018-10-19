@@ -82,6 +82,31 @@ void generate_x86(IR[] ins)
         case IRType.JMP:
             writefln("  jmp .L%d", ir.lhs);
             break;
+        case IRType.CALL:
+            // レジスタをスタックに退避
+            // これcallee-savedレジスタだと思うんだけどこうしないと動かない。
+            // 調べても意図がわからなかった……
+            enum save_regs = ["rbx", "rbp", "rsp", "r12", "r13", "r14", "r15"];
+            static foreach (reg; save_regs)
+            {
+                writefln("  push %s", reg);
+            }
+
+            static immutable string[] regs_arg = ["rdi", "rsi", "rdx", "rcx", "r8", "r9"];
+            foreach (i, arg; ir.args)
+            {
+                writefln("  mov %s, %s", regs_arg[i], registers[arg]);
+            }
+
+            writefln("  mov rax, 0");
+            writefln("  call %s", ir.name);
+            writefln("  mov %s, rax", registers[ir.lhs]);
+
+            static foreach_reverse (reg; save_regs)
+            {
+                writefln("  pop %s", reg);
+            }
+            break;
         case IRType.NOP:
             break;
         default:

@@ -18,6 +18,7 @@ enum NodeType
     IF,
     COMPOUND_STATEMENT,
     EXPRESSION_STATEMENT,
+    CALL,
     ADD = '+',
     SUB = '-',
     MUL = '*',
@@ -39,6 +40,9 @@ struct Node
     Node* cond;
     Node* then;
     Node* els;
+
+    // 関数呼び出し用
+    Node[] args;
 }
 
 Node* parse(Token[] tokens)
@@ -199,9 +203,24 @@ Node* term(Token[] tokens, ref size_t i)
     if (tokens[i].type == TokenType.IDENTIFIER)
     {
         Node* n = new Node();
-        n.type = NodeType.IDENTIFIER;
         n.name = tokens[i].name;
         i++;
+        if (!consume(TokenType.LEFT_PARENTHESES, tokens, i))
+        {
+            n.type = NodeType.IDENTIFIER;
+            return n;
+        }
+        n.type = NodeType.CALL;
+        if (consume(TokenType.RIGHT_PARENTHESES, tokens, i))
+        {
+            return n;
+        }
+        n.args ~= *assign(tokens, i);
+        while (consume(TokenType.COMMA, tokens, i))
+        {
+            n.args ~= *assign(tokens, i);
+        }
+        expect(')', tokens, i);
         return n;
     }
 
