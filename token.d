@@ -15,6 +15,7 @@ enum TokenType
     IDENTIFIER,
     RETURN,
     IF,
+    ELSE,
     EOF,
     ADD = '+',
     SUB = '-',
@@ -41,6 +42,7 @@ Token[] tokenize(string s)
     TokenType[string] keywords;
     keywords["return"] = TokenType.RETURN;
     keywords["if"] = TokenType.IF;
+    keywords["else"] = TokenType.ELSE;
 
     while (i < s.length) // Dの文字列はNull終端ではない
     {

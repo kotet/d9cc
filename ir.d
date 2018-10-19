@@ -33,6 +33,7 @@ enum IRType
     ADD_IMM, // 即値add
     LABEL,
     UNLESS,
+    JMP,
     ADD = '+',
     SUB = '-',
     MUL = '*',
@@ -75,6 +76,7 @@ struct IR
         case IRType.KILL:
             return IRInfo.REG;
         case IRType.LABEL:
+        case IRType.JMP:
             return IRInfo.LABEL;
         case IRType.UNLESS:
             return IRInfo.REG_LABEL;
@@ -132,12 +134,23 @@ IR[] genStatement(ref long regno, ref long bpoff, ref long basereg, ref long lab
     if (node.type == NodeType.IF)
     {
         long r = genExpression(result, regno, bpoff, basereg, label, vars, node.cond);
-        long l = label;
+        long l_then_end = label;
         label++;
-        result ~= IR(IRType.UNLESS, r, l);
+        result ~= IR(IRType.UNLESS, r, l_then_end);
         result ~= IR(IRType.KILL, r, -1);
         result ~= genStatement(regno, bpoff, basereg, label, vars, node.then);
-        result ~= IR(IRType.LABEL, l, -1);
+
+        if (!(node.els))
+        {
+            result ~= IR(IRType.LABEL, l_then_end, -1);
+            return result;
+        }
+
+        long l_else_end = label;
+        result ~= IR(IRType.JMP, l_else_end);
+        result ~= IR(IRType.LABEL, l_then_end);
+        result ~= genStatement(regno, bpoff, basereg, label, vars, node.els);
+        result ~= IR(IRType.LABEL, l_else_end);
         return result;
     }
     if (node.type == NodeType.RETURN)

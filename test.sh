@@ -38,6 +38,9 @@ try 45 'return ( 2 + 3 ) *(4+5);'
 try 2 'if (1) return 2;return 3;'
 try 3 'if (0) return 2;return 3;'
 
+try 2 'if (1) a=2;else a=3;return a;'
+try 3 'if (0) a=2;else a=3;return a;'
+
 echo "＿人人人＿"
 echo "＞　OK　＜"
 echo "￣Y^Y^Y^￣"

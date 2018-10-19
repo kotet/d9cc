@@ -79,6 +79,9 @@ void generate_x86(IR[] ins)
             // ゼロフラグが1ならジャンプ
             writefln("  je .L%d", ir.rhs);
             break;
+        case IRType.JMP:
+            writefln("  jmp .L%d", ir.lhs);
+            break;
         case IRType.NOP:
             break;
         default:

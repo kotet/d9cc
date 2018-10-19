@@ -38,6 +38,7 @@ struct Node
     // if用
     Node* cond;
     Node* then;
+    Node* els;
 }
 
 Node* parse(Token[] tokens)
@@ -94,6 +95,10 @@ Node* stmt(Token[] tokens, ref size_t i)
         node.cond = assign(tokens, i);
         expect(')', tokens, i);
         node.then = stmt(tokens, i);
+        if (consume(TokenType.ELSE, tokens, i))
+        {
+            node.els = stmt(tokens, i);
+        }
         return node;
     case TokenType.RETURN:
         i++;
