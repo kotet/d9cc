@@ -1,5 +1,5 @@
 /// 中間表現。レジスタは無限にあるものとして、レジスタの使い回しをしないコードを生成する
-module ir;
+module gen_ir;
 
 import std.algorithm : among;
 import std.stdio : stderr;

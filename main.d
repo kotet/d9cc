@@ -2,9 +2,9 @@ import std.stdio : writeln, stderr;
 
 import token;
 import parser;
-import ir;
+import gen_ir;
 import regalloc;
-import codegen;
+import gen_x86;
 import util;
 
 int main(string[] args)

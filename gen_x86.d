@@ -1,10 +1,10 @@
 /// コード生成器
-module codegen;
+module gen_x86;
 
 import std.stdio : writefln, stderr;
 import std.format : format;
 
-import ir;
+import gen_ir;
 import regalloc;
 
 public:

@@ -3,7 +3,7 @@ module regalloc;
 
 import std.stdio : stderr;
 
-import ir;
+import gen_ir;
 import util;
 
 public:
