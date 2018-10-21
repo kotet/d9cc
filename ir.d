@@ -27,7 +27,6 @@ enum IRType
     RETURN,
     KILL, // lhsに指定されたレジスタを解放する
     NOP,
-    ALLOCA,
     LOAD,
     STORE,
     ADD_IMM, // 即値add
@@ -75,7 +74,6 @@ struct IR
         case IRType.STORE:
             return IRInfo.REG_REG;
         case IRType.IMM:
-        case IRType.ALLOCA:
         case IRType.ADD_IMM:
             return IRInfo.REG_IMM;
         case IRType.RETURN:
@@ -129,6 +127,7 @@ struct Function
     string name;
     long[] args;
     IR[] irs;
+    size_t stacksize;
 }
 
 Function[] genIR(Node[] node)
@@ -137,21 +136,18 @@ Function[] genIR(Node[] node)
     foreach (n; node)
     {
         assert(n.type == NodeType.FUNCTION);
-        long regno = 1;
-        long basereg;
-        long bpoff; // 使うメモリ領域のサイズ
-        long label;
+        size_t regno = 1; // 0番はベースレジスタとして予約
+        size_t label;
+        size_t stacksize;
         long[string] vars;
         IR[] code;
 
-        code ~= IR(IRType.ALLOCA, basereg, -1);
-        code ~= genStatement(regno, bpoff, basereg, label, vars, n.function_body);
-        code[0].rhs = bpoff;
-        code ~= IR(IRType.KILL, basereg, -1);
+        code ~= genStatement(regno, stacksize, label, vars, n.function_body);
 
         Function fn;
         fn.name = n.name;
         fn.irs = code;
+        fn.stacksize = stacksize;
         result ~= fn;
     }
     return result;
@@ -159,18 +155,18 @@ Function[] genIR(Node[] node)
 
 private:
 
-IR[] genStatement(ref long regno, ref long bpoff, ref long basereg, ref long label,
+IR[] genStatement(ref size_t regno, ref size_t stacksize, ref size_t label,
         ref long[string] vars, Node* node)
 {
     IR[] result;
     if (node.type == NodeType.IF)
     {
-        long r = genExpression(result, regno, bpoff, basereg, label, vars, node.cond);
+        long r = genExpression(result, regno, stacksize, label, vars, node.cond);
         long l_then_end = label;
         label++;
         result ~= IR(IRType.UNLESS, r, l_then_end);
         result ~= IR(IRType.KILL, r, -1);
-        result ~= genStatement(regno, bpoff, basereg, label, vars, node.then);
+        result ~= genStatement(regno, stacksize, label, vars, node.then);
 
         if (!(node.els))
         {
@@ -181,20 +177,20 @@ IR[] genStatement(ref long regno, ref long bpoff, ref long basereg, ref long lab
         long l_else_end = label;
         result ~= IR(IRType.JMP, l_else_end);
         result ~= IR(IRType.LABEL, l_then_end);
-        result ~= genStatement(regno, bpoff, basereg, label, vars, node.els);
+        result ~= genStatement(regno, stacksize, label, vars, node.els);
         result ~= IR(IRType.LABEL, l_else_end);
         return result;
     }
     if (node.type == NodeType.RETURN)
     {
-        long r = genExpression(result, regno, bpoff, basereg, label, vars, node.expr);
+        long r = genExpression(result, regno, stacksize, label, vars, node.expr);
         result ~= IR(IRType.RETURN, r, -1);
         result ~= IR(IRType.KILL, r, -1);
         return result;
     }
     if (node.type == NodeType.EXPRESSION_STATEMENT)
     {
-        long r = genExpression(result, regno, bpoff, basereg, label, vars, node.expr);
+        long r = genExpression(result, regno, stacksize, label, vars, node.expr);
         result ~= IR(IRType.KILL, r, -1);
         return result;
     }
@@ -202,7 +198,7 @@ IR[] genStatement(ref long regno, ref long bpoff, ref long basereg, ref long lab
     {
         foreach (n; node.statements)
         {
-            result ~= genStatement(regno, bpoff, basereg, label, vars, &n);
+            result ~= genStatement(regno, stacksize, label, vars, &n);
         }
         return result;
     }
@@ -210,8 +206,8 @@ IR[] genStatement(ref long regno, ref long bpoff, ref long basereg, ref long lab
     assert(0);
 }
 
-long genExpression(ref IR[] ins, ref long regno, ref long bpoff, ref long basereg,
-        ref long label, ref long[string] vars, Node* node)
+long genExpression(ref IR[] ins, ref size_t regno, ref size_t stacksize,
+        ref size_t label, ref long[string] vars, Node* node)
 {
     if (node.type == NodeType.NUM)
     {
@@ -223,15 +219,15 @@ long genExpression(ref IR[] ins, ref long regno, ref long bpoff, ref long basere
 
     if (node.type == NodeType.IDENTIFIER)
     {
-        long r = genLval(ins, regno, bpoff, basereg, label, vars, node);
+        long r = genLval(ins, regno, stacksize, label, vars, node);
         ins ~= IR(IRType.LOAD, r, r);
         return r;
     }
 
     if (node.type == NodeType.ASSIGN)
     {
-        long rhs = genExpression(ins, regno, bpoff, basereg, label, vars, node.rhs);
-        long lhs = genLval(ins, regno, bpoff, basereg, label, vars, node.lhs);
+        long rhs = genExpression(ins, regno, stacksize, label, vars, node.rhs);
+        long lhs = genLval(ins, regno, stacksize, label, vars, node.lhs);
         ins ~= IR(IRType.STORE, lhs, rhs);
         ins ~= IR(IRType.KILL, rhs, -1);
         return lhs;
@@ -242,7 +238,7 @@ long genExpression(ref IR[] ins, ref long regno, ref long bpoff, ref long basere
         IR ir;
         ir.op = IRType.CALL;
         foreach (arg; node.args)
-            ir.args ~= genExpression(ins, regno, bpoff, basereg, label, vars, &arg);
+            ir.args ~= genExpression(ins, regno, stacksize, label, vars, &arg);
 
         long r = regno;
         regno++;
@@ -256,16 +252,16 @@ long genExpression(ref IR[] ins, ref long regno, ref long bpoff, ref long basere
 
     assert(node.type.among!(NodeType.ADD, NodeType.SUB, NodeType.MUL, NodeType.DIV));
 
-    long lhs = genExpression(ins, regno, bpoff, basereg, label, vars, node.lhs);
-    long rhs = genExpression(ins, regno, bpoff, basereg, label, vars, node.rhs);
+    long lhs = genExpression(ins, regno, stacksize, label, vars, node.lhs);
+    long rhs = genExpression(ins, regno, stacksize, label, vars, node.rhs);
 
     ins ~= IR(cast(IRType) node.type, lhs, rhs);
     ins ~= IR(IRType.KILL, rhs, -1);
     return lhs;
 }
 
-long genLval(ref IR[] ins, ref long regno, ref long bpoff, ref long basereg,
-        ref long label, ref long[string] vars, Node* node)
+long genLval(ref IR[] ins, ref size_t regno, ref size_t stacksize, ref size_t label,
+        ref long[string] vars, Node* node)
 {
     if (node.type != NodeType.IDENTIFIER)
     {
@@ -273,14 +269,14 @@ long genLval(ref IR[] ins, ref long regno, ref long bpoff, ref long basereg,
     }
     if (!(node.name in vars))
     {
-        vars[node.name] = bpoff;
-        bpoff += 8;
+        stacksize += 8;
+        vars[node.name] = stacksize;
     }
 
     long r = regno;
     regno++;
     long off = vars[node.name];
-    ins ~= IR(IRType.MOV, r, basereg);
-    ins ~= IR(IRType.ADD_IMM, r, off);
+    ins ~= IR(IRType.MOV, r, 0);
+    ins ~= IR(IRType.ADD_IMM, r, -off);
     return r;
 }

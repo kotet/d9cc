@@ -24,19 +24,21 @@ void gen(Function fn, ref size_t labelcnt)
     writefln(".global %s", fn.name);
     writefln("%s:", fn.name);
 
+    writefln("  push rbp");
+    writefln("  mov rbp, rsp");
+    writefln("  sub rsp, %d", fn.stacksize);
+
     // 終了処理の開始位置に置くラベル
     string ret = format(".Lend%d", labelcnt);
     labelcnt++;
 
     // レジスタをスタックに退避
     // rspはrbpから復元
-    enum save_regs = ["rbx", "rbp", "r12", "r13", "r14", "r15"];
+    enum save_regs = ["rbx", "r12", "r13", "r14", "r15"];
     static foreach (reg; save_regs)
     {
         writefln("  push %s", reg);
     }
-    writefln("  mov rbp, rsp");
-
 
     // 最後に出力するものだけど上と対になってるので近くに置いたほうが読みやすいかなと思った
     scope (success)
@@ -44,11 +46,12 @@ void gen(Function fn, ref size_t labelcnt)
         // スタックからレジスタを復元
         // rspはrbpから復元
         writefln("%s:", ret);
-        writefln("  mov rsp, rbp");
         static foreach_reverse (reg; save_regs)
         {
             writefln("  pop %s", reg);
         }
+        writefln("  mov rsp, rbp");
+        writefln("  pop rbp");
         writefln("  ret");
     }
 
@@ -66,14 +69,6 @@ void gen(Function fn, ref size_t labelcnt)
         case IRType.RETURN:
             writefln("  mov rax, %s", registers[ir.lhs]);
             writefln("  jmp %s", ret);
-            break;
-        case IRType.ALLOCA:
-            // スタックはアドレスの小さい方に伸びていく
-            if (ir.rhs != 0)
-            {
-                writefln("  sub rsp, %d", ir.rhs);
-            }
-            writefln("  mov %s, rsp", registers[ir.lhs]);
             break;
         case IRType.LOAD:
             writefln("  mov %s, [%s]", registers[ir.lhs], registers[ir.rhs]);

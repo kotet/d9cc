@@ -8,7 +8,8 @@ import util;
 
 public:
 // 関数呼び出し前後で保存されることが保証されているレジスタを使ってレジスタの無駄な退避をなくす
-static immutable string[] registers = ["rbx", "r10", "r11", "r12", "r13", "r14", "r15"];
+// 前段階で0番レジスタをベースレジスタ扱いしているのでrbpも他のレジスタと同じように扱える
+static immutable string[] registers = ["rbp", "rbx", "r10", "r11", "r12", "r13", "r14", "r15"];
 
 void allocRegisters(ref Function[] fns)
 {
@@ -23,8 +24,11 @@ private:
 void visit(ref IR[] ins)
 {
     size_t[size_t] reg_map;
+    reg_map[0] = 0;
     bool[] used = new bool[](registers.length);
     used[] = false;
+    used[0] = true; // ベースレジスタ
+
     foreach (ref ir; ins)
     {
         switch (ir.getInfo())
