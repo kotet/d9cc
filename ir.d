@@ -124,18 +124,36 @@ struct IR
     }
 }
 
-IR[] genIR(Node* node)
+struct Function
 {
-    long regno = 1;
-    long basereg;
-    long bpoff; // 使うメモリ領域のサイズ
-    long label;
-    long[string] vars;
-    IR[] result;
-    result ~= IR(IRType.ALLOCA, basereg, 0);
-    result ~= genStatement(regno, bpoff, basereg, label, vars, node);
-    result[0].rhs = bpoff;
-    result ~= IR(IRType.KILL, basereg, -1);
+    string name;
+    long[] args;
+    IR[] irs;
+}
+
+Function[] genIR(Node[] node)
+{
+    Function[] result;
+    foreach (n; node)
+    {
+        assert(n.type == NodeType.FUNCTION);
+        long regno = 1;
+        long basereg;
+        long bpoff; // 使うメモリ領域のサイズ
+        long label;
+        long[string] vars;
+        IR[] code;
+
+        code ~= IR(IRType.ALLOCA, basereg, -1);
+        code ~= genStatement(regno, bpoff, basereg, label, vars, n.function_body);
+        code[0].rhs = bpoff;
+        code ~= IR(IRType.KILL, basereg, -1);
+
+        Function fn;
+        fn.name = n.name;
+        fn.irs = code;
+        result ~= fn;
+    }
     return result;
 }
 

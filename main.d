@@ -40,29 +40,33 @@ int main(string[] args)
 
         // stderr.writeln(tokens);
 
-        Node* node = parse(tokens);
+        Node[] nodes = parse(tokens);
 
-        IR[] ins = genIR(node);
+        Function[] fns = genIR(nodes);
 
         if (dump_ir1)
         {
-            foreach (i, ir; ins)
-                stderr.writefln("%3d:  %s", i, ir);
+            foreach (fn; fns)
+            {
+                stderr.writefln("%s():", fn.name);
+                foreach (i, ir; fn.irs)
+                    stderr.writefln("%3d:  %s", i, ir);
+            }
         }
 
-        size_t[size_t] reg_map = allocRegisters(ins);
+        allocRegisters(fns);
 
         if (dump_ir2)
         {
-            foreach (ir; ins)
-                stderr.writeln(ir);
+            foreach (fn; fns)
+            {
+                stderr.writefln("%s():", fn.name);
+                foreach (i, ir; fn.irs)
+                    stderr.writefln("%3d:  %s", i, ir);
+            }
         }
 
-        writeln(".intel_syntax noprefix"); // intel記法を使う
-        writeln(".global main");
-        writeln("main:");
-
-        generate_x86(ins);
+        generate_x86(fns);
         return 0;
     }
     catch (ExitException e)

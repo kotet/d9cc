@@ -25,6 +25,8 @@ enum TokenType
     ASSIGN = '=',
     LEFT_PARENTHESES = '(',
     RIGHT_PARENTHESES = ')',
+    LEFT_BRACES = '{',
+    RIGHT_BRACES = '}',
     COMMA = ',',
 }
 
@@ -53,7 +55,7 @@ Token[] tokenize(string s)
             continue;
         }
 
-        if (s[i].among!('+', '-', '*', '/', ';', '=', '(', ')', ','))
+        if (s[i].among!('+', '-', '*', '/', ';', '=', '(', ')', ',', '{', '}'))
         {
             Token t;
             t.type = cast(TokenType) s[i];

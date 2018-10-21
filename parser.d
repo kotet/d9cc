@@ -19,6 +19,7 @@ enum NodeType
     COMPOUND_STATEMENT,
     EXPRESSION_STATEMENT,
     CALL,
+    FUNCTION,
     ADD = '+',
     SUB = '-',
     MUL = '*',
@@ -43,12 +44,20 @@ struct Node
 
     // 関数呼び出し用
     Node[] args;
+
+    // 関数定義用
+    Node* function_body;
 }
 
-Node* parse(Token[] tokens)
+Node[] parse(Token[] tokens)
 {
     size_t i;
-    return compound_stmt(tokens, i);
+    Node[] functions;
+    while (tokens[i].type != TokenType.EOF)
+    {
+        functions ~= *func(tokens, i);
+    }
+    return functions;
 }
 
 private:
@@ -73,18 +82,36 @@ bool consume(TokenType type, Token[] tokens, ref size_t i)
     return false;
 }
 
+Node* func(Token[] tokens, ref size_t i)
+{
+    Node* n = new Node();
+    n.type = NodeType.FUNCTION;
+    auto t = tokens[i];
+    if (t.type != TokenType.IDENTIFIER)
+    {
+        error("Function name expected, but got %s", t.input);
+    }
+    n.name = t.name;
+    i++;
+    expect('(', tokens, i);
+    while (!consume(TokenType.RIGHT_PARENTHESES, tokens, i))
+    {
+        n.args ~= *term(tokens, i);
+    }
+    expect('{', tokens, i);
+    n.function_body = compound_stmt(tokens, i);
+    return n;
+}
+
 Node* compound_stmt(Token[] tokens, ref size_t i)
 {
     Node* n = new Node();
     n.type = NodeType.COMPOUND_STATEMENT;
-    while (true)
+    while (!consume(TokenType.RIGHT_BRACES, tokens, i))
     {
-        if (tokens[i].type == TokenType.EOF)
-        {
-            return n;
-        }
         n.statements ~= *stmt(tokens, i);
     }
+    return n;
 }
 
 Node* stmt(Token[] tokens, ref size_t i)

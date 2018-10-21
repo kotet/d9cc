@@ -7,9 +7,20 @@ import ir;
 import util;
 
 public:
-static immutable string[] registers = ["rdi", "rsi", "r10", "r11", "r12", "r13", "r14", "r15"];
+// 関数呼び出し前後で保存されることが保証されているレジスタを使ってレジスタの無駄な退避をなくす
+static immutable string[] registers = ["rbx", "r10", "r11", "r12", "r13", "r14", "r15"];
 
-size_t[size_t] allocRegisters(ref IR[] ins)
+void allocRegisters(ref Function[] fns)
+{
+    foreach (ref fn; fns)
+    {
+        visit(fn.irs);
+    }
+}
+
+private:
+
+void visit(ref IR[] ins)
 {
     size_t[size_t] reg_map;
     bool[] used = new bool[](registers.length);
@@ -41,10 +52,7 @@ size_t[size_t] allocRegisters(ref IR[] ins)
             ir.op = IRType.NOP; // レジスタ割当専用命令なので特に対応する命令はない
         }
     }
-    return reg_map;
 }
-
-private:
 
 /// 使われていないレジスタを探して中間表現のレジスタと紐付ける
 size_t alloc(ref size_t[size_t] reg_map, ref bool[] used, size_t ir_reg)

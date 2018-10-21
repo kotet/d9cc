@@ -1,7 +1,7 @@
 /// コード生成器
 module codegen;
 
-import std.stdio : writefln;
+import std.stdio : writefln, stderr;
 import std.format : format;
 
 import ir;
@@ -9,15 +9,50 @@ import regalloc;
 
 public:
 
-void generate_x86(IR[] ins)
+void generate_x86(Function[] fns)
 {
+    writefln(".intel_syntax noprefix"); // intel記法を使う
     size_t labelcnt;
-    string ret = ".Lend";
+    foreach (fn; fns)
+        gen(fn, labelcnt);
+}
 
-    writefln("  push rbp");
+private:
+
+void gen(Function fn, ref size_t labelcnt)
+{
+    writefln(".global %s", fn.name);
+    writefln("%s:", fn.name);
+
+    // 終了処理の開始位置に置くラベル
+    string ret = format(".Lend%d", labelcnt);
+    labelcnt++;
+
+    // レジスタをスタックに退避
+    // rspはrbpから復元
+    enum save_regs = ["rbx", "rbp", "r12", "r13", "r14", "r15"];
+    static foreach (reg; save_regs)
+    {
+        writefln("  push %s", reg);
+    }
     writefln("  mov rbp, rsp");
 
-    foreach (ir; ins)
+
+    // 最後に出力するものだけど上と対になってるので近くに置いたほうが読みやすいかなと思った
+    scope (success)
+    {
+        // スタックからレジスタを復元
+        // rspはrbpから復元
+        writefln("%s:", ret);
+        writefln("  mov rsp, rbp");
+        static foreach_reverse (reg; save_regs)
+        {
+            writefln("  pop %s", reg);
+        }
+        writefln("  ret");
+    }
+
+    foreach (ir; fn.irs)
     {
         // 計算結果はlhsのレジスタに格納
         switch (ir.op)
@@ -34,7 +69,7 @@ void generate_x86(IR[] ins)
             break;
         case IRType.ALLOCA:
             // スタックはアドレスの小さい方に伸びていく
-            if (ir.rhs != -1)
+            if (ir.rhs != 0)
             {
                 writefln("  sub rsp, %d", ir.rhs);
             }
@@ -83,29 +118,24 @@ void generate_x86(IR[] ins)
             writefln("  jmp .L%d", ir.lhs);
             break;
         case IRType.CALL:
-            // レジスタをスタックに退避
-            // これcallee-savedレジスタだと思うんだけどこうしないと動かない。
-            // 調べても意図がわからなかった……
-            enum save_regs = ["rbx", "rbp", "rsp", "r12", "r13", "r14", "r15"];
-            static foreach (reg; save_regs)
-            {
-                writefln("  push %s", reg);
-            }
 
             static immutable string[] regs_arg = ["rdi", "rsi", "rdx", "rcx", "r8", "r9"];
             foreach (i, arg; ir.args)
             {
                 writefln("  mov %s, %s", regs_arg[i], registers[arg]);
             }
+            // レジスタの退避
+            writefln("  push r10");
+            writefln("  push r11");
 
             writefln("  mov rax, 0");
             writefln("  call %s", ir.name);
-            writefln("  mov %s, rax", registers[ir.lhs]);
 
-            static foreach_reverse (reg; save_regs)
-            {
-                writefln("  pop %s", reg);
-            }
+            // レジスタの復元
+            writefln("  pop r11");
+            writefln("  pop r10");
+
+            writefln("  mov %s, rax", registers[ir.lhs]);
             break;
         case IRType.NOP:
             break;
@@ -113,14 +143,7 @@ void generate_x86(IR[] ins)
             assert(0, "Unknown operator");
         }
     }
-
-    writefln("%s:", ret);
-    writefln("  mov rsp, rbp");
-    writefln("  pop rbp");
-    writefln("  ret");
 }
-
-private:
 
 string genLabel(size_t labelcnt)
 {
