@@ -19,6 +19,8 @@ void generate_x86(Function[] fns)
 
 private:
 
+static immutable string[] regs_arg = ["rdi", "rsi", "rdx", "rcx", "r8", "r9"];
+
 void gen(Function fn, ref size_t labelcnt)
 {
     writefln(".global %s", fn.name);
@@ -79,6 +81,9 @@ void gen(Function fn, ref size_t labelcnt)
         case IRType.ADD_IMM:
             writefln("  add %s, %d", registers[ir.lhs], ir.rhs);
             break;
+        case IRType.SUB_IMM:
+            writefln("  sub %s, %d", registers[ir.lhs], ir.rhs);
+            break;
         case IRType.ADD:
             writefln("  add %s, %s", registers[ir.lhs], registers[ir.rhs]);
             break;
@@ -113,8 +118,6 @@ void gen(Function fn, ref size_t labelcnt)
             writefln("  jmp .L%d", ir.lhs);
             break;
         case IRType.CALL:
-
-            static immutable string[] regs_arg = ["rdi", "rsi", "rdx", "rcx", "r8", "r9"];
             foreach (i, arg; ir.args)
             {
                 writefln("  mov %s, %s", regs_arg[i], registers[arg]);
@@ -131,6 +134,12 @@ void gen(Function fn, ref size_t labelcnt)
             writefln("  pop r10");
 
             writefln("  mov %s, rax", registers[ir.lhs]);
+            break;
+        case IRType.SAVE_ARGS:
+            foreach (i; 0 .. ir.lhs)
+            {
+                writefln("  mov [rbp-%d], %s", (i + 1) * 8, regs_arg[i]);
+            }
             break;
         case IRType.NOP:
             break;

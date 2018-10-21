@@ -30,10 +30,12 @@ enum IRType
     LOAD,
     STORE,
     ADD_IMM, // 即値add
+    SUB_IMM, // 即値sub
     LABEL,
     UNLESS,
     JMP,
     CALL,
+    SAVE_ARGS, // 引数の保持
     ADD = '+',
     SUB = '-',
     MUL = '*',
@@ -49,6 +51,7 @@ enum IRInfo
     REG_IMM,
     REG_LABEL,
     CALL,
+    IMM,
 }
 
 struct IR
@@ -75,6 +78,7 @@ struct IR
             return IRInfo.REG_REG;
         case IRType.IMM:
         case IRType.ADD_IMM:
+        case IRType.SUB_IMM:
             return IRInfo.REG_IMM;
         case IRType.RETURN:
         case IRType.KILL:
@@ -88,6 +92,8 @@ struct IR
             return IRInfo.CALL;
         case IRType.NOP:
             return IRInfo.NOARG;
+        case IRType.SAVE_ARGS:
+            return IRInfo.IMM;
         default:
             assert(0);
         }
@@ -116,6 +122,8 @@ struct IR
                 s ~= format("\tr%d", arg);
             s ~= ")";
             return s;
+        case IRInfo.IMM:
+            return format("%s\t%d", this.op, this.lhs);
         default:
             assert(0);
         }
@@ -125,7 +133,6 @@ struct IR
 struct Function
 {
     string name;
-    long[] args;
     IR[] irs;
     size_t stacksize;
 }
@@ -142,6 +149,7 @@ Function[] genIR(Node[] node)
         long[string] vars;
         IR[] code;
 
+        code ~= genArgs(stacksize, vars, n.args);
         code ~= genStatement(regno, stacksize, label, vars, n.function_body);
 
         Function fn;
@@ -154,6 +162,27 @@ Function[] genIR(Node[] node)
 }
 
 private:
+
+IR[] genArgs(ref size_t stacksize, ref long[string] vars, Node[] nodes)
+{
+    if (nodes.length == 0)
+    {
+        return [];
+    }
+    IR[] irs;
+    irs ~= IR(IRType.SAVE_ARGS, nodes.length, -1);
+
+    foreach (node; nodes)
+    {
+        if (node.type != NodeType.IDENTIFIER)
+        {
+            error("Bad parameter");
+        }
+        stacksize += 8;
+        vars[node.name] = stacksize;
+    }
+    return irs;
+}
 
 IR[] genStatement(ref size_t regno, ref size_t stacksize, ref size_t label,
         ref long[string] vars, Node* node)
@@ -277,6 +306,6 @@ long genLval(ref IR[] ins, ref size_t regno, ref size_t stacksize, ref size_t la
     regno++;
     long off = vars[node.name];
     ins ~= IR(IRType.MOV, r, 0);
-    ins ~= IR(IRType.ADD_IMM, r, -off);
+    ins ~= IR(IRType.SUB_IMM, r, off);
     return r;
 }

@@ -94,9 +94,15 @@ Node* func(Token[] tokens, ref size_t i)
     n.name = t.name;
     i++;
     expect('(', tokens, i);
-    while (!consume(TokenType.RIGHT_PARENTHESES, tokens, i))
+    // term()は関数定義の時(func(a,b,c))の時はIDENTIFIERノードを返す
+    if (!consume(TokenType.RIGHT_PARENTHESES, tokens, i))
     {
         n.args ~= *term(tokens, i);
+        while (consume(TokenType.COMMA, tokens, i))
+        {
+            n.args ~= *term(tokens, i);
+        }
+        expect(')', tokens, i);
     }
     expect('{', tokens, i);
     n.function_body = compound_stmt(tokens, i);
