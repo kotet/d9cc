@@ -52,6 +52,7 @@ enum IRInfo
     REG_LABEL,
     CALL,
     IMM,
+    JMP,
 }
 
 struct IR
@@ -84,8 +85,9 @@ struct IR
         case IRType.KILL:
             return IRInfo.REG;
         case IRType.LABEL:
-        case IRType.JMP:
             return IRInfo.LABEL;
+        case IRType.JMP:
+            return IRInfo.JMP;
         case IRType.UNLESS:
             return IRInfo.REG_LABEL;
         case IRType.CALL:
@@ -105,25 +107,27 @@ struct IR
         switch (this.getInfo())
         {
         case IRInfo.REG_REG:
-            return format("%s\tr%d\tr%d", this.op, this.lhs, this.rhs);
+            return format("  %s\tr%d\tr%d", this.op, this.lhs, this.rhs);
         case IRInfo.REG_IMM:
-            return format("%s\tr%d\t%d", this.op, this.lhs, this.rhs);
+            return format("  %s\tr%d\t%d", this.op, this.lhs, this.rhs);
         case IRInfo.REG:
-            return format("%s\tr%d", this.op, this.lhs);
+            return format("  %s\tr%d", this.op, this.lhs);
         case IRInfo.LABEL:
             return format(".L%s:", this.lhs);
         case IRInfo.REG_LABEL:
-            return format("%s\tr%d\t.L%s", this.op, this.lhs, this.rhs);
+            return format("  %s\tr%d\t.L%s", this.op, this.lhs, this.rhs);
         case IRInfo.NOARG:
-            return format("%s", this.op);
+            return format("  %s", this.op);
         case IRInfo.CALL:
-            string s = format("r%d = %s(", this.lhs, this.name);
+            string s = format("  r%d = %s(", this.lhs, this.name);
             foreach (arg; this.args)
                 s ~= format("\tr%d", arg);
             s ~= ")";
             return s;
         case IRInfo.IMM:
-            return format("%s\t%d", this.op, this.lhs);
+            return format("  %s\t%d", this.op, this.lhs);
+        case IRInfo.JMP:
+            return format("  %s\t.L%s:", this.op, this.lhs);
         default:
             assert(0);
         }
@@ -238,32 +242,63 @@ IR[] genStatement(ref size_t regno, ref size_t stacksize, ref size_t label,
 long genExpression(ref IR[] ins, ref size_t regno, ref size_t stacksize,
         ref size_t label, ref long[string] vars, Node* node)
 {
-    if (node.type == NodeType.NUM)
+    switch (node.type)
     {
+    case NodeType.NUM:
         long r = regno;
         regno++;
         ins ~= IR(IRType.IMM, r, node.val);
         return r;
-    }
+    case NodeType.LOGICAL_AND:
+        // 短絡評価
+        // falseは0、それ以外はtrue
+        size_t l = label;
+        label++;
 
-    if (node.type == NodeType.IDENTIFIER)
-    {
+        long r1 = genExpression(ins, regno, stacksize, label, vars, node.lhs);
+        ins ~= IR(IRType.UNLESS, r1, l);
+
+        long r2 = genExpression(ins, regno, stacksize, label, vars, node.rhs);
+        ins ~= IR(IRType.MOV, r1, r2);
+        ins ~= IR(IRType.UNLESS, r1, l);
+
+        // true && true の時r1に入っている値は0以外
+        // そのままだとあとで困るので1を返す
+        ins ~= IR(IRType.IMM, r1, 1);
+
+        ins ~= IR(IRType.LABEL, l);
+        return r1;
+    case NodeType.LOGICAL_OR:
+        size_t l_rhs = label;
+        label++;
+        size_t l_ret = label;
+        label++;
+
+        long r1 = genExpression(ins, regno, stacksize, label, vars, node.lhs);
+        ins ~= IR(IRType.UNLESS, r1, l_rhs);
+        ins ~= IR(IRType.IMM, r1, 1);
+        ins ~= IR(IRType.JMP, l_ret);
+
+        ins ~= IR(IRType.LABEL, l_rhs);
+        long r2 = genExpression(ins, regno, stacksize, label, vars, node.rhs);
+        ins ~= IR(IRType.MOV, r1, r2);
+        ins ~= IR(IRType.KILL, r2);
+        ins ~= IR(IRType.UNLESS, r1, l_ret);
+        ins ~= IR(IRType.IMM, r1, 1);
+
+        ins ~= IR(IRType.LABEL, l_ret);
+        return r1;
+    case NodeType.IDENTIFIER:
         long r = genLval(ins, regno, stacksize, label, vars, node);
         ins ~= IR(IRType.LOAD, r, r);
         return r;
-    }
-
-    if (node.type == NodeType.ASSIGN)
-    {
+    case NodeType.ASSIGN:
         long rhs = genExpression(ins, regno, stacksize, label, vars, node.rhs);
         long lhs = genLval(ins, regno, stacksize, label, vars, node.lhs);
         ins ~= IR(IRType.STORE, lhs, rhs);
         ins ~= IR(IRType.KILL, rhs, -1);
         return lhs;
-    }
-
-    if (node.type == NodeType.CALL)
-    {
+    case NodeType.CALL:
         IR ir;
         ir.op = IRType.CALL;
         foreach (arg; node.args)
@@ -277,16 +312,17 @@ long genExpression(ref IR[] ins, ref size_t regno, ref size_t stacksize,
         foreach (reg; ir.args)
             ins ~= IR(IRType.KILL, reg, -1);
         return r;
+    default:
+        assert(node.type.among!(NodeType.ADD, NodeType.SUB, NodeType.MUL, NodeType.DIV));
+
+        long lhs = genExpression(ins, regno, stacksize, label, vars, node.lhs);
+        long rhs = genExpression(ins, regno, stacksize, label, vars, node.rhs);
+
+        ins ~= IR(cast(IRType) node.type, lhs, rhs);
+        ins ~= IR(IRType.KILL, rhs, -1);
+        return lhs;
     }
 
-    assert(node.type.among!(NodeType.ADD, NodeType.SUB, NodeType.MUL, NodeType.DIV));
-
-    long lhs = genExpression(ins, regno, stacksize, label, vars, node.lhs);
-    long rhs = genExpression(ins, regno, stacksize, label, vars, node.rhs);
-
-    ins ~= IR(cast(IRType) node.type, lhs, rhs);
-    ins ~= IR(IRType.KILL, rhs, -1);
-    return lhs;
 }
 
 long genLval(ref IR[] ins, ref size_t regno, ref size_t stacksize, ref size_t label,

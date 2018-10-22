@@ -6,7 +6,16 @@ import std.stdio : stderr;
 import token;
 import util;
 
-// 1+2+3+4 -> ((((1 + 2) + 3) + 4) + 5)
+// <func>           ::= <compound_stmt>
+// <compound_stmt>  ::= {<stmt>}
+// <stmt>           ::= <if> | <assign>
+// <if>             ::= <assign> <stmt> [<stmt>]
+// <assign>         ::= <logicalOr> | <logicalOr> <logicalOr>
+// <logicalOr>      ::= <logicalAnd> | <logicalAnd> <logicalAnd>
+// <logicalAnd>     ::= <add> | <add> <add>
+// <add>            ::= <mul> | <mul> <mul>
+// <mul>            ::= <term> | <term> <term>
+// <term>           ::= <assign> | <NUM> | <IDENTIFIER>
 
 public:
 
@@ -20,6 +29,8 @@ enum NodeType
     EXPRESSION_STATEMENT,
     CALL,
     FUNCTION,
+    LOGICAL_AND,
+    LOGICAL_OR,
     ADD = '+',
     SUB = '-',
     MUL = '*',
@@ -154,7 +165,7 @@ Node* stmt(Token[] tokens, ref size_t i)
 
 Node* assign(Token[] tokens, ref size_t i)
 {
-    Node* lhs = expr(tokens, i);
+    Node* lhs = logicalOr(tokens, i);
 
     if (consume(TokenType.ASSIGN, tokens, i))
     {
@@ -162,14 +173,60 @@ Node* assign(Token[] tokens, ref size_t i)
             Node* n = new Node();
             n.type = NodeType.ASSIGN;
             n.lhs = lhs;
-            n.rhs = expr(tokens, i);
+            n.rhs = logicalOr(tokens, i);
             return n;
         }();
     }
     return lhs;
 }
 
-Node* expr(Token[] tokens, ref size_t i)
+// Cでは論理演算子の間に優先順位がある
+
+Node* logicalOr(Token[] tokens, ref size_t i)
+{
+    Node* lhs = logicalAnd(tokens, i);
+
+    while (true)
+    {
+        TokenType op = tokens[i].type;
+        if (op != TokenType.LOGICAL_OR)
+        {
+            return lhs;
+        }
+        i++;
+        lhs = () {
+            Node* n = new Node();
+            n.type = NodeType.LOGICAL_OR;
+            n.lhs = lhs;
+            n.rhs = logicalAnd(tokens, i);
+            return n;
+        }();
+    }
+}
+
+Node* logicalAnd(Token[] tokens, ref size_t i)
+{
+    Node* lhs = add(tokens, i);
+
+    while (true)
+    {
+        TokenType op = tokens[i].type;
+        if (op != TokenType.LOGICAL_AND)
+        {
+            return lhs;
+        }
+        i++;
+        lhs = () {
+            Node* n = new Node();
+            n.type = NodeType.LOGICAL_AND;
+            n.lhs = lhs;
+            n.rhs = add(tokens, i);
+            return n;
+        }();
+    }
+}
+
+Node* add(Token[] tokens, ref size_t i)
 {
     Node* lhs = mul(tokens, i);
 

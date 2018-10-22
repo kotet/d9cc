@@ -17,6 +17,8 @@ enum TokenType
     IF,
     ELSE,
     EOF,
+    LOGICAL_AND,
+    LOGICAL_OR,
     ADD = '+',
     SUB = '-',
     MUL = '*',
@@ -42,19 +44,26 @@ Token[] tokenize(string s)
 {
     Token[] result;
     size_t i;
+
     TokenType[string] keywords;
     keywords["return"] = TokenType.RETURN;
     keywords["if"] = TokenType.IF;
     keywords["else"] = TokenType.ELSE;
 
-    while (i < s.length) // Dの文字列はNull終端ではない
+    TokenType[string] symbols;
+    symbols["&&"] = TokenType.LOGICAL_AND;
+    symbols["||"] = TokenType.LOGICAL_OR;
+
+    while_loop: while (i < s.length) // Dの文字列はNull終端ではない
     {
+        // 空白文字をスキップ
         if (s[i].isSpace())
         {
             i++;
             continue;
         }
 
+        // 1文字トークン
         if (s[i].among!('+', '-', '*', '/', ';', '=', '(', ')', ',', '{', '}'))
         {
             Token t;
@@ -66,6 +75,21 @@ Token[] tokenize(string s)
             continue;
         }
 
+        // 複数文字トークン
+        foreach (symbol, type; symbols)
+        {
+            if (s[i .. (i + symbol.length)] == symbol)
+            {
+                Token t;
+                t.type = type;
+                t.input = s[i .. (i + symbol.length)];
+                i += symbol.length;
+                result ~= t;
+                continue while_loop;
+            }
+        }
+
+        // 数値
         if (s[i].isDigit())
         {
             Token t;
@@ -78,6 +102,7 @@ Token[] tokenize(string s)
             continue;
         }
 
+        // 識別子
         if (s[i].isAlpha || s[i] == '_')
         {
             size_t len = 1;
