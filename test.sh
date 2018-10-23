@@ -17,6 +17,10 @@ try() {
     fi
 }
 
+# フィボナッチ数列!!!!
+try 233 'fib(a,b,n){if (n-1) return fib(b,a+b,n-1);else return a;} main(){return fib(1,1,13);}'
+try 233 'fib(n){a=0; b=1; c=0; for (i=0;i<n;i=i+1) {c=a+b;a=b;b=c;} return a;}main(){return fib(13);}'
+echo
 try 0 'main() { return 0; }'
 try 42 'main() { return 42; }'
 try 21 'main() { 1+2; return 5+20-4; }'
@@ -48,9 +52,6 @@ try 3 'one() { return 1; } two() { return 2; } main() { return one() + two(); }'
 try 6 'mul(a, b) { return a * b; } main() { return mul(2, 3); }'
 try 21 'add(a,b,c,d,e,f) { return a+b+c+d+e+f; } main() { return add(1,2,3,4,5,6); }'
 echo
-# フィボナッチ数列!!!!
-try 233 'fib(a,b,n){if (n-1) return fib(b,a+b,n-1);else return a;} main(){return fib(1,1,13);}'
-echo
 try 0 'main() { return 0||0; }'
 try 1 'main() { return 1||0; }'
 try 1 'main() { return 0||1; }'
@@ -69,7 +70,7 @@ try 0 'main() { return 0>1; }'
 try 1 'main() { return 1>0; }'
 echo
 try 60 'main() { sum=0; for (i=10; i<15; i=i+1) sum = sum + i; return sum;}'
-
+try 89 'main() { i=1; j=1; for (k=0; k<10; k=k+1) { m=i+j; i=j; j=m; } return i;}'
 echo "＿人人人＿"
 echo "＞　OK　＜"
 echo "￣Y^Y^Y^￣"

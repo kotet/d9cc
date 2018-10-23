@@ -114,7 +114,7 @@ Node* func(Token[] tokens, ref size_t i)
     i++;
     expect('(', tokens, i);
     // term()は関数定義の時(func(a,b,c))の時はIDENTIFIERノードを返す
-    if (!consume(TokenType.RIGHT_PARENTHESES, tokens, i))
+    if (!consume(TokenType.RIGHT_PARENTHESE, tokens, i))
     {
         n.args ~= *term(tokens, i);
         while (consume(TokenType.COMMA, tokens, i))
@@ -132,7 +132,7 @@ Node* compound_stmt(Token[] tokens, ref size_t i)
 {
     Node* n = new Node();
     n.type = NodeType.COMPOUND_STATEMENT;
-    while (!consume(TokenType.RIGHT_BRACES, tokens, i))
+    while (!consume(TokenType.RIGHT_BRACE, tokens, i))
     {
         n.statements ~= *stmt(tokens, i);
     }
@@ -173,6 +173,14 @@ Node* stmt(Token[] tokens, ref size_t i)
         node.type = NodeType.RETURN;
         node.expr = assign(tokens, i);
         expect(';', tokens, i);
+        return node;
+    case TokenType.LEFT_BRACE:
+        i++;
+        node.type = NodeType.COMPOUND_STATEMENT;
+        while (!consume(TokenType.RIGHT_BRACE, tokens, i))
+        {
+            node.statements ~= *stmt(tokens, i);
+        }
         return node;
     default:
         node.type = NodeType.EXPRESSION_STATEMENT;
@@ -329,7 +337,7 @@ Node* mul(Token[] tokens, ref size_t i)
 Node* term(Token[] tokens, ref size_t i)
 {
 
-    if (tokens[i].type == TokenType.LEFT_PARENTHESES)
+    if (tokens[i].type == TokenType.LEFT_PARENTHESE)
     {
         i++;
         Node* n = assign(tokens, i);
@@ -351,13 +359,13 @@ Node* term(Token[] tokens, ref size_t i)
         Node* n = new Node();
         n.name = tokens[i].name;
         i++;
-        if (!consume(TokenType.LEFT_PARENTHESES, tokens, i))
+        if (!consume(TokenType.LEFT_PARENTHESE, tokens, i))
         {
             n.type = NodeType.IDENTIFIER;
             return n;
         }
         n.type = NodeType.CALL;
-        if (consume(TokenType.RIGHT_PARENTHESES, tokens, i))
+        if (consume(TokenType.RIGHT_PARENTHESE, tokens, i))
         {
             return n;
         }
