@@ -58,6 +58,13 @@ try 0 'main() { return 1&&0; }'
 try 0 'main() { return 0&&1; }'
 try 1 'main() { return 1&&1; }'
 
+try 0 'main() { return 0<0; }'
+try 0 'main() { return 1<0; }'
+try 1 'main() { return 0<1; }'
+try 0 'main() { return 0>0; }'
+try 0 'main() { return 0>1; }'
+try 1 'main() { return 1>0; }'
+
 echo "＿人人人＿"
 echo "＞　OK　＜"
 echo "￣Y^Y^Y^￣"

@@ -36,6 +36,7 @@ enum IRType
     JMP,
     CALL,
     SAVE_ARGS, // 引数の保持
+    LESS_THAN = '<',
     ADD = '+',
     SUB = '-',
     MUL = '*',
@@ -76,6 +77,7 @@ struct IR
         case IRType.DIV:
         case IRType.LOAD:
         case IRType.STORE:
+        case IRType.LESS_THAN:
             return IRInfo.REG_REG;
         case IRType.IMM:
         case IRType.ADD_IMM:
@@ -312,17 +314,25 @@ long genExpression(ref IR[] ins, ref size_t regno, ref size_t stacksize,
         foreach (reg; ir.args)
             ins ~= IR(IRType.KILL, reg, -1);
         return r;
+    case NodeType.ADD:
+        return genBinaryOp(ins, regno, stacksize, label, vars,
+                IRType.ADD, node.lhs, node.rhs);
+    case NodeType.SUB:
+        return genBinaryOp(ins, regno, stacksize, label, vars,
+                IRType.SUB, node.lhs, node.rhs);
+    case NodeType.MUL:
+        return genBinaryOp(ins, regno, stacksize, label, vars,
+                IRType.MUL, node.lhs, node.rhs);
+    case NodeType.DIV:
+        return genBinaryOp(ins, regno, stacksize, label, vars,
+                IRType.DIV, node.lhs, node.rhs);
+    case NodeType.LESS_THAN:
+        return genBinaryOp(ins, regno, stacksize, label,
+                vars, IRType.LESS_THAN, node.lhs, node.rhs);
     default:
-        assert(node.type.among!(NodeType.ADD, NodeType.SUB, NodeType.MUL, NodeType.DIV));
-
-        long lhs = genExpression(ins, regno, stacksize, label, vars, node.lhs);
-        long rhs = genExpression(ins, regno, stacksize, label, vars, node.rhs);
-
-        ins ~= IR(cast(IRType) node.type, lhs, rhs);
-        ins ~= IR(IRType.KILL, rhs, -1);
-        return lhs;
+        error("Unknown AST Type: %s", node.type);
+        assert(0);
     }
-
 }
 
 long genLval(ref IR[] ins, ref size_t regno, ref size_t stacksize, ref size_t label,
@@ -344,4 +354,14 @@ long genLval(ref IR[] ins, ref size_t regno, ref size_t stacksize, ref size_t la
     ins ~= IR(IRType.MOV, r, 0);
     ins ~= IR(IRType.SUB_IMM, r, off);
     return r;
+}
+
+long genBinaryOp(ref IR[] ins, ref size_t regno, ref size_t stacksize,
+        ref size_t label, ref long[string] vars, IRType type, Node* lhs, Node* rhs)
+{
+    long r_lhs = genExpression(ins, regno, stacksize, label, vars, lhs);
+    long r_rhs = genExpression(ins, regno, stacksize, label, vars, rhs);
+    ins ~= IR(type, r_lhs, r_rhs);
+    ins ~= IR(IRType.KILL, r_rhs);
+    return r_lhs;
 }

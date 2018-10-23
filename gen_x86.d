@@ -141,6 +141,17 @@ void gen(Function fn, ref size_t labelcnt)
                 writefln("  mov [rbp-%d], %s", (i + 1) * 8, regs_arg[i]);
             }
             break;
+        case IRType.LESS_THAN:
+            // lhs - rhsが負数、つまりlhs < rhsのとき符号フラグが1になる
+            writefln("  cmp %s, %s", registers[ir.lhs], registers[ir.rhs]);
+            // setlは符号フラグが1のとき1をセットする。
+            // 結果は1バイトの値なのでレジスタも8ビットのものを使う
+            writefln("  setl %s", registers_lower_8bits[ir.lhs]);
+            // 上位ビットは変化しないので適切にゼロ拡張してやる必要がある。
+            // movzbは8ビットの値を64ビットにゼロ拡張して格納する。
+            // 結果的に、下のコードはlhsレジスタの上位ビットをただゼロ埋めする
+            writefln("  movzb %s, %s", registers[ir.lhs], registers_lower_8bits[ir.lhs]);
+            break;
         case IRType.NOP:
             break;
         default:

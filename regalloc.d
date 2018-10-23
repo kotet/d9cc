@@ -9,7 +9,15 @@ import util;
 public:
 // 関数呼び出し前後で保存されることが保証されているレジスタを使ってレジスタの無駄な退避をなくす
 // 前段階で0番レジスタをベースレジスタ扱いしているのでrbpも他のレジスタと同じように扱える
-static immutable string[] registers = ["rbp", "rbx", "r10", "r11", "r12", "r13", "r14", "r15"];
+// dfmt off
+static immutable string[] registers = 
+    ["rbp", "rbx", "r10",  "r11",  "r12",  "r13",  "r14",  "r15"];
+// 上のレジスタの下位8ビットを表すレジスタ
+static immutable string[] registers_lower_8bits = 
+    ["bpl", "bl",  "r10b", "r11b", "r12b", "r13b", "r14b", "r15b"];
+// dfmt on
+
+static assert(registers.length == registers_lower_8bits.length);
 
 void allocRegisters(ref Function[] fns)
 {

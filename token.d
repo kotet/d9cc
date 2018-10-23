@@ -30,6 +30,8 @@ enum TokenType
     LEFT_BRACES = '{',
     RIGHT_BRACES = '}',
     COMMA = ',',
+    LESS_THAN = '<',
+    GREATER_THAN = '>',
 }
 
 struct Token
@@ -64,7 +66,7 @@ Token[] tokenize(string s)
         }
 
         // 1文字トークン
-        if (s[i].among!('+', '-', '*', '/', ';', '=', '(', ')', ',', '{', '}'))
+        if (s[i].among!('+', '-', '*', '/', ';', '=', '(', ')', ',', '{', '}', '<', '>'))
         {
             Token t;
             t.type = cast(TokenType) s[i];

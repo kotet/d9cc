@@ -12,7 +12,8 @@ import util;
 // <if>             ::= <assign> <stmt> [<stmt>]
 // <assign>         ::= <logicalOr> | <logicalOr> <logicalOr>
 // <logicalOr>      ::= <logicalAnd> | <logicalAnd> <logicalAnd>
-// <logicalAnd>     ::= <add> | <add> <add>
+// <logicalAnd>     ::= <rel> | <rel> <rel>
+// <rel>            ::= <add> | <add> <add>
 // <add>            ::= <mul> | <mul> <mul>
 // <mul>            ::= <term> | <term> <term>
 // <term>           ::= <assign> | <NUM> | <IDENTIFIER>
@@ -31,6 +32,7 @@ enum NodeType
     FUNCTION,
     LOGICAL_AND,
     LOGICAL_OR,
+    LESS_THAN = '<',
     ADD = '+',
     SUB = '-',
     MUL = '*',
@@ -206,7 +208,7 @@ Node* logicalOr(Token[] tokens, ref size_t i)
 
 Node* logicalAnd(Token[] tokens, ref size_t i)
 {
-    Node* lhs = add(tokens, i);
+    Node* lhs = rel(tokens, i);
 
     while (true)
     {
@@ -220,9 +222,45 @@ Node* logicalAnd(Token[] tokens, ref size_t i)
             Node* n = new Node();
             n.type = NodeType.LOGICAL_AND;
             n.lhs = lhs;
-            n.rhs = add(tokens, i);
+            n.rhs = rel(tokens, i);
             return n;
         }();
+    }
+}
+
+Node* rel(Token[] tokens, ref size_t i)
+{
+    // 大小比較。
+    // 向きを < (less than)に統一する
+    Node* lhs = add(tokens, i);
+    while (true)
+    {
+        TokenType op = tokens[i].type;
+        if (op == TokenType.LESS_THAN)
+        {
+            i++;
+            lhs = () {
+                Node* n = new Node();
+                n.type = NodeType.LESS_THAN;
+                n.lhs = lhs;
+                n.rhs = add(tokens, i);
+                return n;
+            }();
+            continue;
+        }
+        if (op == TokenType.GREATER_THAN)
+        {
+            i++;
+            lhs = () {
+                Node* n = new Node();
+                n.type = NodeType.LESS_THAN;
+                n.lhs = add(tokens, i);
+                n.rhs = lhs;
+                return n;
+            }();
+            continue;
+        }
+        return lhs;
     }
 }
 
