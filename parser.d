@@ -26,6 +26,7 @@ enum NodeType
     IDENTIFIER,
     RETURN,
     IF,
+    FOR,
     COMPOUND_STATEMENT,
     EXPRESSION_STATEMENT,
     CALL,
@@ -43,23 +44,28 @@ enum NodeType
 struct Node
 {
     NodeType type;
+
+    // (type == LOGICAL_AND, LOGICAL_OR, LESS_THAN, ADD, SUB, MUL, DIV, ASSIGN)
     Node* lhs = null;
     Node* rhs = null;
-    int val; // 値リテラル
-    string name; // 変数名
-    Node* expr; // 式
-    Node[] statements; // 文
 
-    // if用
+    int val; // 値リテラル (type == NUM)
+    string name; // 変数名または関数名 (type == IDENTIFIER, FUNCTION)
+    Node* expr; // 式 (type == EXPRESSION_STATEMENT, RETURN)
+    Node[] statements; // 文 (type == COMPOUND_STATEMENT)
+
+    // typeの値によって役割が変わる
+    // function (<args>){<body>} (type == FUNCTION)
+    // if (<cond>) <then> else <els> (type == IF)
+    // for (<init>;<cond>;<inc>) <body> (type == FOR)
+    // function(<args>) (type == CALL)
+    Node* initalize;
     Node* cond;
+    Node* inc;
     Node* then;
     Node* els;
-
-    // 関数呼び出し用
+    Node* bdy;
     Node[] args;
-
-    // 関数定義用
-    Node* function_body;
 }
 
 Node[] parse(Token[] tokens)
@@ -118,7 +124,7 @@ Node* func(Token[] tokens, ref size_t i)
         expect(')', tokens, i);
     }
     expect('{', tokens, i);
-    n.function_body = compound_stmt(tokens, i);
+    n.bdy = compound_stmt(tokens, i);
     return n;
 }
 
@@ -149,6 +155,18 @@ Node* stmt(Token[] tokens, ref size_t i)
         {
             node.els = stmt(tokens, i);
         }
+        return node;
+    case TokenType.FOR:
+        i++;
+        node.type = NodeType.FOR;
+        expect('(', tokens, i);
+        node.initalize = assign(tokens, i);
+        expect(';', tokens, i);
+        node.cond = assign(tokens, i);
+        expect(';', tokens, i);
+        node.inc = assign(tokens, i);
+        expect(')', tokens, i);
+        node.bdy = stmt(tokens, i);
         return node;
     case TokenType.RETURN:
         i++;

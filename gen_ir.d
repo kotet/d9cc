@@ -156,7 +156,7 @@ Function[] genIR(Node[] node)
         IR[] code;
 
         code ~= genArgs(stacksize, vars, n.args);
-        code ~= genStatement(regno, stacksize, label, vars, n.function_body);
+        code ~= genStatement(regno, stacksize, label, vars, n.bdy);
 
         Function fn;
         fn.name = n.name;
@@ -214,6 +214,27 @@ IR[] genStatement(ref size_t regno, ref size_t stacksize, ref size_t label,
         result ~= IR(IRType.LABEL, l_then_end);
         result ~= genStatement(regno, stacksize, label, vars, node.els);
         result ~= IR(IRType.LABEL, l_else_end);
+        return result;
+    }
+    if (node.type == NodeType.FOR)
+    {
+        long l_loop_enter = label;
+        label++;
+        long l_loop_end = label;
+        label++;
+
+        result ~= IR(IRType.KILL, genExpression(result, regno, stacksize,
+                label, vars, node.initalize));
+        result ~= IR(IRType.LABEL, l_loop_enter);
+        long r_cond = genExpression(result, regno, stacksize, label, vars, node.cond);
+        result ~= IR(IRType.UNLESS, r_cond, l_loop_end);
+        result ~= IR(IRType.KILL, r_cond);
+
+        result ~= genStatement(regno, stacksize, label, vars, node.bdy);
+
+        result ~= IR(IRType.KILL, genExpression(result, regno, stacksize, label, vars, node.inc));
+        result ~= IR(IRType.JMP, l_loop_enter);
+        result ~= IR(IRType.LABEL, l_loop_end);
         return result;
     }
     if (node.type == NodeType.RETURN)

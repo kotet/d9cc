@@ -15,6 +15,7 @@ enum TokenType
     IDENTIFIER,
     RETURN,
     IF,
+    FOR,
     ELSE,
     EOF,
     LOGICAL_AND,
@@ -46,15 +47,10 @@ Token[] tokenize(string s)
 {
     Token[] result;
     size_t i;
-
-    TokenType[string] keywords;
-    keywords["return"] = TokenType.RETURN;
-    keywords["if"] = TokenType.IF;
-    keywords["else"] = TokenType.ELSE;
-
-    TokenType[string] symbols;
-    symbols["&&"] = TokenType.LOGICAL_AND;
-    symbols["||"] = TokenType.LOGICAL_OR;
+    TokenType[string] symbols = [
+        "return" : TokenType.RETURN, "if" : TokenType.IF, "for" : TokenType.FOR,
+        "else" : TokenType.ELSE, "&&" : TokenType.LOGICAL_AND, "||" : TokenType.LOGICAL_OR,
+    ];
 
     while_loop: while (i < s.length) // Dの文字列はNull終端ではない
     {
@@ -80,7 +76,7 @@ Token[] tokenize(string s)
         // 複数文字トークン
         foreach (symbol, type; symbols)
         {
-            if (s[i .. (i + symbol.length)] == symbol)
+            if ((i + symbol.length) < s.length && s[i .. (i + symbol.length)] == symbol)
             {
                 Token t;
                 t.type = type;
@@ -114,17 +110,6 @@ Token[] tokenize(string s)
             }
             string name = s[i .. i + len];
 
-            if (name in keywords)
-            {
-                result ~= () {
-                    Token t;
-                    t.type = keywords[name];
-                    t.input = name;
-                    return t;
-                }();
-                i += len;
-                continue;
-            }
             result ~= () {
                 Token t;
                 t.type = TokenType.IDENTIFIER;
