@@ -221,17 +221,18 @@ IR[] genStatement(ref size_t regno, ref size_t stacksize, ref size_t label,
         result ~= IR(IRType.KILL, r, -1);
         result ~= genStatement(regno, stacksize, label, vars, node.then);
 
-        if (!(node.els))
+        if (node.els)
+        {
+            long l_else_end = label;
+            result ~= IR(IRType.JMP, l_else_end);
+            result ~= IR(IRType.LABEL, l_then_end);
+            result ~= genStatement(regno, stacksize, label, vars, node.els);
+            result ~= IR(IRType.LABEL, l_else_end);
+        }
+        else
         {
             result ~= IR(IRType.LABEL, l_then_end, -1);
-            return result;
         }
-
-        long l_else_end = label;
-        result ~= IR(IRType.JMP, l_else_end);
-        result ~= IR(IRType.LABEL, l_then_end);
-        result ~= genStatement(regno, stacksize, label, vars, node.els);
-        result ~= IR(IRType.LABEL, l_else_end);
         return result;
     }
     if (node.type == NodeType.FOR)

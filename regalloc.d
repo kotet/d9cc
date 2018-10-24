@@ -60,7 +60,9 @@ void visit(ref IR[] ins)
         }
         if (ir.op == IRType.KILL)
         {
-            kill(used, ir.lhs);
+            /// レジスタの解放
+            assert(used[ir.lhs]);
+            used[ir.lhs] = false;
             ir.op = IRType.NOP; // レジスタ割当専用命令なので特に対応する命令はない
         }
     }
@@ -85,11 +87,4 @@ size_t alloc(ref size_t[size_t] reg_map, ref bool[] used, size_t ir_reg)
     }
     stderr.writeln("Register exhausted");
     throw new ExitException(-1);
-}
-
-/// レジスタの解放
-void kill(ref bool[] used, size_t r)
-{
-    assert(used[r]);
-    used[r] = false;
 }
