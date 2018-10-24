@@ -13,6 +13,7 @@ enum TokenType
 {
     NUM,
     IDENTIFIER,
+    INT,
     RETURN,
     IF,
     FOR,
@@ -48,8 +49,9 @@ Token[] tokenize(string s)
     Token[] result;
     size_t i;
     TokenType[string] symbols = [
-        "return" : TokenType.RETURN, "if" : TokenType.IF, "for" : TokenType.FOR,
-        "else" : TokenType.ELSE, "&&" : TokenType.LOGICAL_AND, "||" : TokenType.LOGICAL_OR,
+        "int" : TokenType.INT, "return" : TokenType.RETURN, "if" : TokenType.IF,
+        "for" : TokenType.FOR, "else" : TokenType.ELSE, "&&"
+        : TokenType.LOGICAL_AND, "||" : TokenType.LOGICAL_OR,
     ];
 
     while_loop: while (i < s.length) // Dの文字列はNull終端ではない

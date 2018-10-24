@@ -194,6 +194,12 @@ IR[] genStatement(ref size_t regno, ref size_t stacksize, ref size_t label,
         ref long[string] vars, Node* node)
 {
     IR[] result;
+    if (node.type == NodeType.VARIABLE_DEFINITION)
+    {
+        stacksize += 8;
+        vars[node.name] = stacksize;
+        return result;
+    }
     if (node.type == NodeType.IF)
     {
         long r = genExpression(result, regno, stacksize, label, vars, node.cond);
@@ -365,8 +371,7 @@ long genLval(ref IR[] ins, ref size_t regno, ref size_t stacksize, ref size_t la
     }
     if (!(node.name in vars))
     {
-        stacksize += 8;
-        vars[node.name] = stacksize;
+        error("Undefined variable: %s", node.name);
     }
 
     long r = regno;

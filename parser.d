@@ -6,16 +6,17 @@ import std.stdio : stderr;
 import token;
 import util;
 
+// BNFじみた表記になっているが特にBNFとしては意味のないメモ書き
 // <func>           ::= <compound_stmt>
 // <compound_stmt>  ::= {<stmt>}
 // <stmt>           ::= <if> | <assign>
-// <if>             ::= <assign> <stmt> [<stmt>]
-// <assign>         ::= <logicalOr> | <logicalOr> <logicalOr>
-// <logicalOr>      ::= <logicalAnd> | <logicalAnd> <logicalAnd>
-// <logicalAnd>     ::= <rel> | <rel> <rel>
-// <rel>            ::= <add> | <add> <add>
-// <add>            ::= <mul> | <mul> <mul>
-// <mul>            ::= <term> | <term> <term>
+// <if>             ::= if (<assign>) <stmt> [else <stmt>]
+// <assign>         ::= <logicalOr> | <logicalOr> = <logicalOr>
+// <logicalOr>      ::= <logicalAnd> | <logicalAnd> || <logicalAnd>
+// <logicalAnd>     ::= <rel> | <rel> && <rel>
+// <rel>            ::= <add> | <add> < <add>
+// <add>            ::= <mul> | <mul> + <mul>
+// <mul>            ::= <term> | <term> * <term>
 // <term>           ::= <assign> | <NUM> | <IDENTIFIER>
 
 public:
@@ -24,6 +25,7 @@ enum NodeType
 {
     NUM,
     IDENTIFIER,
+    VARIABLE_DEFINITION,
     RETURN,
     IF,
     FOR,
@@ -105,11 +107,19 @@ Node* func(Token[] tokens, ref size_t i)
 {
     Node* n = new Node();
     n.type = NodeType.FUNCTION;
-    auto t = tokens[i];
-    if (t.type != TokenType.IDENTIFIER)
+
+    // 関数の型。intしかない上に今のところは特に何もしない
+    if (tokens[i].type != TokenType.INT)
     {
-        error("Function name expected, but got %s", t.input);
+        error("Function return type expected, but got %s", tokens[i].input);
     }
+    i++;
+    if (tokens[i].type != TokenType.IDENTIFIER)
+    {
+        error("Function name expected, but got %s", tokens[i].input);
+    }
+
+    auto t = tokens[i];
     n.name = t.name;
     i++;
     expect('(', tokens, i);
@@ -181,6 +191,17 @@ Node* stmt(Token[] tokens, ref size_t i)
         {
             node.statements ~= *stmt(tokens, i);
         }
+        return node;
+    case TokenType.INT:
+        i++;
+        node.type = NodeType.VARIABLE_DEFINITION;
+        if (tokens[i].type != TokenType.IDENTIFIER)
+        {
+            error("Variable name expected, but got %s", tokens[i].input);
+        }
+        node.name = tokens[i].name;
+        i++;
+        expect(';', tokens, i);
         return node;
     default:
         node.type = NodeType.EXPRESSION_STATEMENT;
