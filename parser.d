@@ -103,6 +103,12 @@ bool consume(TokenType type, Token[] tokens, ref size_t i)
     return false;
 }
 
+bool isTypeName(Token t)
+{
+    return t.type == TokenType.INT;
+}
+
+// 関数
 Node* func(Token[] tokens, ref size_t i)
 {
     Node* n = new Node();
@@ -138,6 +144,7 @@ Node* func(Token[] tokens, ref size_t i)
     return n;
 }
 
+// 複数の文
 Node* compound_stmt(Token[] tokens, ref size_t i)
 {
     Node* n = new Node();
@@ -149,6 +156,37 @@ Node* compound_stmt(Token[] tokens, ref size_t i)
     return n;
 }
 
+// 制御構造でない文
+Node* expressionStatement(Token[] tokens, ref size_t i)
+{
+    Node* node = new Node();
+    node.type = NodeType.EXPRESSION_STATEMENT;
+    node.expr = assign(tokens, i);
+    expect(';', tokens, i);
+    return node;
+}
+
+// 変数宣言
+Node* declaration(Token[] tokens, ref size_t i)
+{
+    Node* node = new Node();
+    i++;
+    node.type = NodeType.VARIABLE_DEFINITION;
+    if (tokens[i].type != TokenType.IDENTIFIER)
+    {
+        error("Variable name expected, but got %s", tokens[i].input);
+    }
+    node.name = tokens[i].name;
+    i++;
+    if (consume(TokenType.ASSIGN, tokens, i))
+    {
+        node.initalize = assign(tokens, i);
+    }
+    expect(';', tokens, i);
+    return node;
+}
+
+// 文
 Node* stmt(Token[] tokens, ref size_t i)
 {
     Node* node = new Node();
@@ -170,8 +208,14 @@ Node* stmt(Token[] tokens, ref size_t i)
         i++;
         node.type = NodeType.FOR;
         expect('(', tokens, i);
-        node.initalize = assign(tokens, i);
-        expect(';', tokens, i);
+        if (isTypeName(tokens[i]))
+        {
+            node.initalize = declaration(tokens, i);
+        }
+        else
+        {
+            node.initalize = expressionStatement(tokens, i);
+        }
         node.cond = assign(tokens, i);
         expect(';', tokens, i);
         node.inc = assign(tokens, i);
@@ -193,29 +237,14 @@ Node* stmt(Token[] tokens, ref size_t i)
         }
         return node;
     case TokenType.INT:
-        i++;
-        node.type = NodeType.VARIABLE_DEFINITION;
-        if (tokens[i].type != TokenType.IDENTIFIER)
-        {
-            error("Variable name expected, but got %s", tokens[i].input);
-        }
-        node.name = tokens[i].name;
-        i++;
-        if (consume(TokenType.ASSIGN, tokens, i))
-        {
-            node.initalize = assign(tokens, i);
-        }
-        expect(';', tokens, i);
-        return node;
+        return declaration(tokens, i);
     default:
-        node.type = NodeType.EXPRESSION_STATEMENT;
-        node.expr = assign(tokens, i);
-        expect(';', tokens, i);
-        return node;
+        return expressionStatement(tokens, i);
     }
 
 }
 
+// 変数への代入と式
 Node* assign(Token[] tokens, ref size_t i)
 {
     Node* lhs = logicalOr(tokens, i);
@@ -234,7 +263,7 @@ Node* assign(Token[] tokens, ref size_t i)
 }
 
 // Cでは論理演算子の間に優先順位がある
-
+// or式
 Node* logicalOr(Token[] tokens, ref size_t i)
 {
     Node* lhs = logicalAnd(tokens, i);
@@ -256,7 +285,7 @@ Node* logicalOr(Token[] tokens, ref size_t i)
         }();
     }
 }
-
+// and式
 Node* logicalAnd(Token[] tokens, ref size_t i)
 {
     Node* lhs = rel(tokens, i);
@@ -278,10 +307,9 @@ Node* logicalAnd(Token[] tokens, ref size_t i)
         }();
     }
 }
-
+// 大小比較
 Node* rel(Token[] tokens, ref size_t i)
 {
-    // 大小比較。
     // 向きを < (less than)に統一する
     Node* lhs = add(tokens, i);
     while (true)
@@ -314,7 +342,7 @@ Node* rel(Token[] tokens, ref size_t i)
         return lhs;
     }
 }
-
+// 加算式
 Node* add(Token[] tokens, ref size_t i)
 {
     Node* lhs = mul(tokens, i);
@@ -336,7 +364,7 @@ Node* add(Token[] tokens, ref size_t i)
         }();
     }
 }
-
+// 乗算式
 Node* mul(Token[] tokens, ref size_t i)
 {
     Node* lhs = term(tokens, i);
@@ -358,7 +386,7 @@ Node* mul(Token[] tokens, ref size_t i)
         }();
     }
 }
-
+// 項
 Node* term(Token[] tokens, ref size_t i)
 {
 

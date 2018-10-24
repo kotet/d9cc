@@ -65,8 +65,8 @@ try 0 'int main() { return 0>0; }'
 try 0 'int main() { return 0>1; }'
 try 1 'int main() { return 1>0; }'
 echo
-try 60 'int main() { int sum=0; int i; for (i=10; i<15; i=i+1) sum = sum + i; return sum;}'
-try 89 'int main() { int i=1; int j=1; int k; int m; for (k=0; k<10; k=k+1) { m=i+j; i=j; j=m; } return i;}'
+try 60 'int main() { int sum=0; for (int i=10; i<15; i=i+1) sum = sum + i; return sum;}'
+try 89 'int main() { int i=1; int j=1; int m; for (int k=0; k<10; k=k+1) { m=i+j; i=j; j=m; } return i;}'
 echo "＿人人人＿"
 echo "＞　OK　＜"
 echo "￣Y^Y^Y^￣"

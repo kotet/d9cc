@@ -241,8 +241,7 @@ IR[] genStatement(ref size_t regno, ref size_t stacksize, ref size_t label,
         long l_loop_end = label;
         label++;
 
-        result ~= IR(IRType.KILL, genExpression(result, regno, stacksize,
-                label, vars, node.initalize));
+        result ~= genStatement(regno, stacksize, label, vars, node.initalize);
         result ~= IR(IRType.LABEL, l_loop_enter);
         long r_cond = genExpression(result, regno, stacksize, label, vars, node.cond);
         result ~= IR(IRType.UNLESS, r_cond, l_loop_end);

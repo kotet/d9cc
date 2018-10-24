@@ -71,6 +71,13 @@ int main(string[] args)
     }
     catch (ExitException e)
     {
-        return e.rc;
+        debug
+        {
+            throw e;
+        }
+        else
+        {
+            return e.rc;
+        }
     }
 }
