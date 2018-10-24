@@ -198,6 +198,18 @@ IR[] genStatement(ref size_t regno, ref size_t stacksize, ref size_t label,
     {
         stacksize += 8;
         vars[node.name] = stacksize;
+        if (!(node.initalize))
+        {
+            return result;
+        }
+        long r_value = genExpression(result, regno, stacksize, label, vars, node.initalize);
+        long r_address = regno;
+        regno++;
+        result ~= IR(IRType.MOV, r_address, 0); // この0は即値ではなくベースレジスタの番号
+        result ~= IR(IRType.SUB_IMM, r_address, stacksize);
+        result ~= IR(IRType.STORE, r_address, r_value);
+        result ~= IR(IRType.KILL, r_address);
+        result ~= IR(IRType.KILL, r_value);
         return result;
     }
     if (node.type == NodeType.IF)

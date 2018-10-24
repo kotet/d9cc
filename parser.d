@@ -201,6 +201,10 @@ Node* stmt(Token[] tokens, ref size_t i)
         }
         node.name = tokens[i].name;
         i++;
+        if (consume(TokenType.ASSIGN, tokens, i))
+        {
+            node.initalize = assign(tokens, i);
+        }
         expect(';', tokens, i);
         return node;
     default:

@@ -1,7 +1,7 @@
 /// コード生成器
 module gen_x86;
 
-import std.stdio : writefln, stderr;
+import std.stdio : writeln, writefln, stderr;
 import std.format : format;
 
 import gen_ir;
@@ -55,7 +55,10 @@ void gen(Function fn, ref size_t labelcnt)
         writefln("  mov rsp, rbp");
         writefln("  pop rbp");
         writefln("  ret");
+        writeln();
     }
+
+    writeln();
 
     foreach (ir; fn.irs)
     {
