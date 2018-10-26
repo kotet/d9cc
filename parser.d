@@ -26,6 +26,7 @@ enum NodeType
     NUM,
     IDENTIFIER,
     VARIABLE_DEFINITION,
+    VARIABLE_REFERENCE,
     RETURN,
     IF,
     FOR,
@@ -68,6 +69,11 @@ struct Node
     Node* els;
     Node* bdy;
     Node[] args;
+
+    // FUNCTIONノード用
+    size_t stacksize;
+    // 変数関連ノード用
+    size_t offset;
 }
 
 Node[] parse(Token[] tokens)
@@ -129,13 +135,12 @@ Node* func(Token[] tokens, ref size_t i)
     n.name = t.name;
     i++;
     expect('(', tokens, i);
-    // term()は関数定義の時(func(a,b,c))の時はIDENTIFIERノードを返す
     if (!consume(TokenType.RIGHT_PARENTHESE, tokens, i))
     {
-        n.args ~= *term(tokens, i);
+        n.args ~= *param(tokens, i);
         while (consume(TokenType.COMMA, tokens, i))
         {
-            n.args ~= *term(tokens, i);
+            n.args ~= *param(tokens, i);
         }
         expect(')', tokens, i);
     }
@@ -163,6 +168,20 @@ Node* expressionStatement(Token[] tokens, ref size_t i)
     node.type = NodeType.EXPRESSION_STATEMENT;
     node.expr = assign(tokens, i);
     expect(';', tokens, i);
+    return node;
+}
+
+Node* param(Token[] tokens, ref size_t i)
+{
+    Node* node = new Node();
+    node.type = NodeType.VARIABLE_DEFINITION;
+    i++;
+    if (tokens[i].type != TokenType.IDENTIFIER)
+    {
+        error("Parameter name expected, but got %s", tokens[i].input);
+    }
+    node.name = tokens[i].name;
+    i++;
     return node;
 }
 

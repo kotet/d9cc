@@ -2,6 +2,7 @@ import std.stdio : writeln, stderr;
 
 import token;
 import parser;
+import sema;
 import gen_ir;
 import regalloc;
 import gen_x86;
@@ -41,6 +42,8 @@ int main(string[] args)
         // stderr.writeln(tokens);
 
         Node[] nodes = parse(tokens);
+
+        semantics(nodes);
 
         Function[] fns = genIR(nodes);
 

@@ -45,8 +45,8 @@ try 5 'int main() { return plus(2,3); }'
 echo
 try 1 'int one() { return 1; } int main() { return one(); }'
 try 3 'int one() { return 1; } int two() { return 2; } int main() { return one() + two(); }'
-try 6 'int mul(a, b) { return a * b; } int main() { return mul(2, 3); }'
-try 21 'int add(a,b,c,d,e,f) { return a+b+c+d+e+f; } int main() { return add(1,2,3,4,5,6); }'
+try 6 'int mul(int a,int b) { return a * b; } int main() { return mul(2, 3); }'
+try 21 'int add(int a,int b,int c,int d,int e,int f) { return a+b+c+d+e+f; } int main() { return add(1,2,3,4,5,6); }'
 echo
 try 0 'int main() { return 0||0; }'
 try 1 'int main() { return 1||0; }'

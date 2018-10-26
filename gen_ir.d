@@ -4,6 +4,7 @@ module gen_ir;
 import std.algorithm : among;
 import std.stdio : stderr;
 import std.format : format;
+import std.range : empty;
 
 import parser;
 import util;
@@ -143,25 +144,26 @@ struct Function
     size_t stacksize;
 }
 
-Function[] genIR(Node[] node)
+Function[] genIR(Node[] nodes)
 {
     Function[] result;
-    foreach (n; node)
+    foreach (node; nodes)
     {
-        assert(n.type == NodeType.FUNCTION);
+        assert(node.type == NodeType.FUNCTION);
         size_t regno = 1; // 0番はベースレジスタとして予約
         size_t label;
-        size_t stacksize;
-        long[string] vars;
         IR[] code;
 
-        code ~= genArgs(stacksize, vars, n.args);
-        code ~= genStatement(regno, stacksize, label, vars, n.bdy);
+        // このif文不要では?
+        // if (nodes.length > 0)
+        code ~= IR(IRType.SAVE_ARGS, node.args.length);
+
+        code ~= genStatement(regno, label, node.bdy);
 
         Function fn;
-        fn.name = n.name;
+        fn.name = node.name;
         fn.irs = code;
-        fn.stacksize = stacksize;
+        fn.stacksize = node.stacksize;
         result ~= fn;
     }
     return result;
@@ -169,44 +171,20 @@ Function[] genIR(Node[] node)
 
 private:
 
-IR[] genArgs(ref size_t stacksize, ref long[string] vars, Node[] nodes)
-{
-    if (nodes.length == 0)
-    {
-        return [];
-    }
-    IR[] irs;
-    irs ~= IR(IRType.SAVE_ARGS, nodes.length, -1);
-
-    foreach (node; nodes)
-    {
-        if (node.type != NodeType.IDENTIFIER)
-        {
-            error("Bad parameter");
-        }
-        stacksize += 8;
-        vars[node.name] = stacksize;
-    }
-    return irs;
-}
-
-IR[] genStatement(ref size_t regno, ref size_t stacksize, ref size_t label,
-        ref long[string] vars, Node* node)
+IR[] genStatement(ref size_t regno, ref size_t label, Node* node)
 {
     IR[] result;
     if (node.type == NodeType.VARIABLE_DEFINITION)
     {
-        stacksize += 8;
-        vars[node.name] = stacksize;
         if (!(node.initalize))
         {
             return result;
         }
-        long r_value = genExpression(result, regno, stacksize, label, vars, node.initalize);
+        long r_value = genExpression(result, regno, label, node.initalize);
         long r_address = regno;
         regno++;
         result ~= IR(IRType.MOV, r_address, 0); // この0は即値ではなくベースレジスタの番号
-        result ~= IR(IRType.SUB_IMM, r_address, stacksize);
+        result ~= IR(IRType.SUB_IMM, r_address, node.offset);
         result ~= IR(IRType.STORE, r_address, r_value);
         result ~= IR(IRType.KILL, r_address);
         result ~= IR(IRType.KILL, r_value);
@@ -214,19 +192,19 @@ IR[] genStatement(ref size_t regno, ref size_t stacksize, ref size_t label,
     }
     if (node.type == NodeType.IF)
     {
-        long r = genExpression(result, regno, stacksize, label, vars, node.cond);
+        long r = genExpression(result, regno, label, node.cond);
         long l_then_end = label;
         label++;
         result ~= IR(IRType.UNLESS, r, l_then_end);
         result ~= IR(IRType.KILL, r, -1);
-        result ~= genStatement(regno, stacksize, label, vars, node.then);
+        result ~= genStatement(regno, label, node.then);
 
         if (node.els)
         {
             long l_else_end = label;
             result ~= IR(IRType.JMP, l_else_end);
             result ~= IR(IRType.LABEL, l_then_end);
-            result ~= genStatement(regno, stacksize, label, vars, node.els);
+            result ~= genStatement(regno, label, node.els);
             result ~= IR(IRType.LABEL, l_else_end);
         }
         else
@@ -242,29 +220,29 @@ IR[] genStatement(ref size_t regno, ref size_t stacksize, ref size_t label,
         long l_loop_end = label;
         label++;
 
-        result ~= genStatement(regno, stacksize, label, vars, node.initalize);
+        result ~= genStatement(regno, label, node.initalize);
         result ~= IR(IRType.LABEL, l_loop_enter);
-        long r_cond = genExpression(result, regno, stacksize, label, vars, node.cond);
+        long r_cond = genExpression(result, regno, label, node.cond);
         result ~= IR(IRType.UNLESS, r_cond, l_loop_end);
         result ~= IR(IRType.KILL, r_cond);
 
-        result ~= genStatement(regno, stacksize, label, vars, node.bdy);
+        result ~= genStatement(regno, label, node.bdy);
 
-        result ~= IR(IRType.KILL, genExpression(result, regno, stacksize, label, vars, node.inc));
+        result ~= IR(IRType.KILL, genExpression(result, regno, label, node.inc));
         result ~= IR(IRType.JMP, l_loop_enter);
         result ~= IR(IRType.LABEL, l_loop_end);
         return result;
     }
     if (node.type == NodeType.RETURN)
     {
-        long r = genExpression(result, regno, stacksize, label, vars, node.expr);
+        long r = genExpression(result, regno, label, node.expr);
         result ~= IR(IRType.RETURN, r, -1);
         result ~= IR(IRType.KILL, r, -1);
         return result;
     }
     if (node.type == NodeType.EXPRESSION_STATEMENT)
     {
-        long r = genExpression(result, regno, stacksize, label, vars, node.expr);
+        long r = genExpression(result, regno, label, node.expr);
         result ~= IR(IRType.KILL, r, -1);
         return result;
     }
@@ -272,7 +250,7 @@ IR[] genStatement(ref size_t regno, ref size_t stacksize, ref size_t label,
     {
         foreach (n; node.statements)
         {
-            result ~= genStatement(regno, stacksize, label, vars, &n);
+            result ~= genStatement(regno, label, &n);
         }
         return result;
     }
@@ -280,8 +258,7 @@ IR[] genStatement(ref size_t regno, ref size_t stacksize, ref size_t label,
     assert(0);
 }
 
-long genExpression(ref IR[] ins, ref size_t regno, ref size_t stacksize,
-        ref size_t label, ref long[string] vars, Node* node)
+long genExpression(ref IR[] ins, ref size_t regno, ref size_t label, Node* node)
 {
     switch (node.type)
     {
@@ -296,10 +273,10 @@ long genExpression(ref IR[] ins, ref size_t regno, ref size_t stacksize,
         size_t l = label;
         label++;
 
-        long r1 = genExpression(ins, regno, stacksize, label, vars, node.lhs);
+        long r1 = genExpression(ins, regno, label, node.lhs);
         ins ~= IR(IRType.UNLESS, r1, l);
 
-        long r2 = genExpression(ins, regno, stacksize, label, vars, node.rhs);
+        long r2 = genExpression(ins, regno, label, node.rhs);
         ins ~= IR(IRType.MOV, r1, r2);
         ins ~= IR(IRType.UNLESS, r1, l);
 
@@ -315,13 +292,13 @@ long genExpression(ref IR[] ins, ref size_t regno, ref size_t stacksize,
         size_t l_ret = label;
         label++;
 
-        long r1 = genExpression(ins, regno, stacksize, label, vars, node.lhs);
+        long r1 = genExpression(ins, regno, label, node.lhs);
         ins ~= IR(IRType.UNLESS, r1, l_rhs);
         ins ~= IR(IRType.IMM, r1, 1);
         ins ~= IR(IRType.JMP, l_ret);
 
         ins ~= IR(IRType.LABEL, l_rhs);
-        long r2 = genExpression(ins, regno, stacksize, label, vars, node.rhs);
+        long r2 = genExpression(ins, regno, label, node.rhs);
         ins ~= IR(IRType.MOV, r1, r2);
         ins ~= IR(IRType.KILL, r2);
         ins ~= IR(IRType.UNLESS, r1, l_ret);
@@ -329,13 +306,13 @@ long genExpression(ref IR[] ins, ref size_t regno, ref size_t stacksize,
 
         ins ~= IR(IRType.LABEL, l_ret);
         return r1;
-    case NodeType.IDENTIFIER:
-        long r = genLval(ins, regno, stacksize, label, vars, node);
+    case NodeType.VARIABLE_REFERENCE:
+        long r = genLval(ins, regno, label, node);
         ins ~= IR(IRType.LOAD, r, r);
         return r;
     case NodeType.ASSIGN:
-        long rhs = genExpression(ins, regno, stacksize, label, vars, node.rhs);
-        long lhs = genLval(ins, regno, stacksize, label, vars, node.lhs);
+        long rhs = genExpression(ins, regno, label, node.rhs);
+        long lhs = genLval(ins, regno, label, node.lhs);
         ins ~= IR(IRType.STORE, lhs, rhs);
         ins ~= IR(IRType.KILL, rhs, -1);
         return lhs;
@@ -343,7 +320,7 @@ long genExpression(ref IR[] ins, ref size_t regno, ref size_t stacksize,
         IR ir;
         ir.op = IRType.CALL;
         foreach (arg; node.args)
-            ir.args ~= genExpression(ins, regno, stacksize, label, vars, &arg);
+            ir.args ~= genExpression(ins, regno, label, &arg);
 
         long r = regno;
         regno++;
@@ -354,51 +331,41 @@ long genExpression(ref IR[] ins, ref size_t regno, ref size_t stacksize,
             ins ~= IR(IRType.KILL, reg, -1);
         return r;
     case NodeType.ADD:
-        return genBinaryOp(ins, regno, stacksize, label, vars,
-                IRType.ADD, node.lhs, node.rhs);
+        return genBinaryOp(ins, regno, label, IRType.ADD, node.lhs, node.rhs);
     case NodeType.SUB:
-        return genBinaryOp(ins, regno, stacksize, label, vars,
-                IRType.SUB, node.lhs, node.rhs);
+        return genBinaryOp(ins, regno, label, IRType.SUB, node.lhs, node.rhs);
     case NodeType.MUL:
-        return genBinaryOp(ins, regno, stacksize, label, vars,
-                IRType.MUL, node.lhs, node.rhs);
+        return genBinaryOp(ins, regno, label, IRType.MUL, node.lhs, node.rhs);
     case NodeType.DIV:
-        return genBinaryOp(ins, regno, stacksize, label, vars,
-                IRType.DIV, node.lhs, node.rhs);
+        return genBinaryOp(ins, regno, label, IRType.DIV, node.lhs, node.rhs);
     case NodeType.LESS_THAN:
-        return genBinaryOp(ins, regno, stacksize, label,
-                vars, IRType.LESS_THAN, node.lhs, node.rhs);
+        return genBinaryOp(ins, regno, label,
+                IRType.LESS_THAN, node.lhs, node.rhs);
     default:
+        // IDENTIFIERは前プロセスで別のノードに変換されている
         error("Unknown AST Type: %s", node.type);
         assert(0);
     }
 }
 
-long genLval(ref IR[] ins, ref size_t regno, ref size_t stacksize, ref size_t label,
-        ref long[string] vars, Node* node)
+long genLval(ref IR[] ins, ref size_t regno, ref size_t label, Node* node)
 {
-    if (node.type != NodeType.IDENTIFIER)
+    if (node.type != NodeType.VARIABLE_REFERENCE)
     {
-        error("Not an lvalue: ", node);
+        error("Not an lvalue: %s (%s)", node.type, node.name);
     }
-    if (!(node.name in vars))
-    {
-        error("Undefined variable: %s", node.name);
-    }
-
     long r = regno;
     regno++;
-    long off = vars[node.name];
     ins ~= IR(IRType.MOV, r, 0);
-    ins ~= IR(IRType.SUB_IMM, r, off);
+    ins ~= IR(IRType.SUB_IMM, r, node.offset);
     return r;
 }
 
-long genBinaryOp(ref IR[] ins, ref size_t regno, ref size_t stacksize,
-        ref size_t label, ref long[string] vars, IRType type, Node* lhs, Node* rhs)
+long genBinaryOp(ref IR[] ins, ref size_t regno, ref size_t label, IRType type,
+        Node* lhs, Node* rhs)
 {
-    long r_lhs = genExpression(ins, regno, stacksize, label, vars, lhs);
-    long r_rhs = genExpression(ins, regno, stacksize, label, vars, rhs);
+    long r_lhs = genExpression(ins, regno, label, lhs);
+    long r_rhs = genExpression(ins, regno, label, rhs);
     ins ~= IR(type, r_lhs, r_rhs);
     ins ~= IR(IRType.KILL, r_rhs);
     return r_lhs;
