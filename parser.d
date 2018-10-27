@@ -27,6 +27,7 @@ enum NodeType
     IDENTIFIER,
     VARIABLE_DEFINITION,
     VARIABLE_REFERENCE,
+    DEREFERENCE,
     RETURN,
     IF,
     FOR,
@@ -44,9 +45,21 @@ enum NodeType
     ASSIGN = '=',
 }
 
+enum TypeName
+{
+    INT,
+    POINTER,
+}
+
+struct Type
+{
+    TypeName type;
+    Type* pointer_of;
+}
+
 struct Node
 {
-    NodeType type;
+    NodeType op;
 
     // (type == LOGICAL_AND, LOGICAL_OR, LESS_THAN, ADD, SUB, MUL, DIV, ASSIGN)
     Node* lhs = null;
@@ -74,6 +87,8 @@ struct Node
     size_t stacksize;
     // 変数関連ノード用
     size_t offset;
+
+    Type type;
 }
 
 Node[] parse(Token[] tokens)
@@ -118,8 +133,7 @@ bool isTypeName(Token t)
 Node* func(Token[] tokens, ref size_t i)
 {
     Node* n = new Node();
-    n.type = NodeType.FUNCTION;
-
+    n.op = NodeType.FUNCTION;
     // 関数の型。intしかない上に今のところは特に何もしない
     if (tokens[i].type != TokenType.INT)
     {
@@ -153,7 +167,7 @@ Node* func(Token[] tokens, ref size_t i)
 Node* compound_stmt(Token[] tokens, ref size_t i)
 {
     Node* n = new Node();
-    n.type = NodeType.COMPOUND_STATEMENT;
+    n.op = NodeType.COMPOUND_STATEMENT;
     while (!consume(TokenType.RIGHT_BRACE, tokens, i))
     {
         n.statements ~= *stmt(tokens, i);
@@ -165,7 +179,7 @@ Node* compound_stmt(Token[] tokens, ref size_t i)
 Node* expressionStatement(Token[] tokens, ref size_t i)
 {
     Node* node = new Node();
-    node.type = NodeType.EXPRESSION_STATEMENT;
+    node.op = NodeType.EXPRESSION_STATEMENT;
     node.expr = assign(tokens, i);
     expect(';', tokens, i);
     return node;
@@ -174,8 +188,8 @@ Node* expressionStatement(Token[] tokens, ref size_t i)
 Node* param(Token[] tokens, ref size_t i)
 {
     Node* node = new Node();
-    node.type = NodeType.VARIABLE_DEFINITION;
-    i++;
+    node.op = NodeType.VARIABLE_DEFINITION;
+    node.type = type(tokens, i);
     if (tokens[i].type != TokenType.IDENTIFIER)
     {
         error("Parameter name expected, but got %s", tokens[i].input);
@@ -189,8 +203,8 @@ Node* param(Token[] tokens, ref size_t i)
 Node* declaration(Token[] tokens, ref size_t i)
 {
     Node* node = new Node();
-    i++;
-    node.type = NodeType.VARIABLE_DEFINITION;
+    node.type = type(tokens, i);
+    node.op = NodeType.VARIABLE_DEFINITION;
     if (tokens[i].type != TokenType.IDENTIFIER)
     {
         error("Variable name expected, but got %s", tokens[i].input);
@@ -205,6 +219,22 @@ Node* declaration(Token[] tokens, ref size_t i)
     return node;
 }
 
+Type type(Token[] tokens, ref size_t i)
+{
+    if (tokens[i].type != TokenType.INT)
+    {
+        error("Type name expected, but got %s", tokens[i].input);
+    }
+    i++;
+    Type ty;
+    ty.type = TypeName.INT;
+    while (consume(TokenType.ASTERISK, tokens, i))
+    {
+        ty = Type(TypeName.POINTER,&ty);
+    }
+    return ty;
+}
+
 // 文
 Node* stmt(Token[] tokens, ref size_t i)
 {
@@ -213,7 +243,7 @@ Node* stmt(Token[] tokens, ref size_t i)
     {
     case TokenType.IF:
         i++;
-        node.type = NodeType.IF;
+        node.op = NodeType.IF;
         expect('(', tokens, i);
         node.cond = assign(tokens, i);
         expect(')', tokens, i);
@@ -225,7 +255,7 @@ Node* stmt(Token[] tokens, ref size_t i)
         return node;
     case TokenType.FOR:
         i++;
-        node.type = NodeType.FOR;
+        node.op = NodeType.FOR;
         expect('(', tokens, i);
         if (isTypeName(tokens[i]))
         {
@@ -243,13 +273,13 @@ Node* stmt(Token[] tokens, ref size_t i)
         return node;
     case TokenType.RETURN:
         i++;
-        node.type = NodeType.RETURN;
+        node.op = NodeType.RETURN;
         node.expr = assign(tokens, i);
         expect(';', tokens, i);
         return node;
     case TokenType.LEFT_BRACE:
         i++;
-        node.type = NodeType.COMPOUND_STATEMENT;
+        node.op = NodeType.COMPOUND_STATEMENT;
         while (!consume(TokenType.RIGHT_BRACE, tokens, i))
         {
             node.statements ~= *stmt(tokens, i);
@@ -272,7 +302,7 @@ Node* assign(Token[] tokens, ref size_t i)
     {
         return () {
             Node* n = new Node();
-            n.type = NodeType.ASSIGN;
+            n.op = NodeType.ASSIGN;
             n.lhs = lhs;
             n.rhs = logicalOr(tokens, i);
             return n;
@@ -297,7 +327,7 @@ Node* logicalOr(Token[] tokens, ref size_t i)
         i++;
         lhs = () {
             Node* n = new Node();
-            n.type = NodeType.LOGICAL_OR;
+            n.op = NodeType.LOGICAL_OR;
             n.lhs = lhs;
             n.rhs = logicalAnd(tokens, i);
             return n;
@@ -319,7 +349,7 @@ Node* logicalAnd(Token[] tokens, ref size_t i)
         i++;
         lhs = () {
             Node* n = new Node();
-            n.type = NodeType.LOGICAL_AND;
+            n.op = NodeType.LOGICAL_AND;
             n.lhs = lhs;
             n.rhs = rel(tokens, i);
             return n;
@@ -339,7 +369,7 @@ Node* rel(Token[] tokens, ref size_t i)
             i++;
             lhs = () {
                 Node* n = new Node();
-                n.type = NodeType.LESS_THAN;
+                n.op = NodeType.LESS_THAN;
                 n.lhs = lhs;
                 n.rhs = add(tokens, i);
                 return n;
@@ -351,7 +381,7 @@ Node* rel(Token[] tokens, ref size_t i)
             i++;
             lhs = () {
                 Node* n = new Node();
-                n.type = NodeType.LESS_THAN;
+                n.op = NodeType.LESS_THAN;
                 n.lhs = add(tokens, i);
                 n.rhs = lhs;
                 return n;
@@ -376,7 +406,7 @@ Node* add(Token[] tokens, ref size_t i)
         i++;
         lhs = () {
             Node* n = new Node();
-            n.type = cast(NodeType) op;
+            n.op = cast(NodeType) op;
             n.lhs = lhs;
             n.rhs = mul(tokens, i);
             return n;
@@ -386,25 +416,42 @@ Node* add(Token[] tokens, ref size_t i)
 // 乗算式
 Node* mul(Token[] tokens, ref size_t i)
 {
-    Node* lhs = term(tokens, i);
+    Node* lhs = unary(tokens, i);
 
     while (true)
     {
         TokenType op = tokens[i].type;
-        if (op != TokenType.MUL && op != TokenType.DIV)
+        if (op != TokenType.ASTERISK && op != TokenType.DIV)
         {
             return lhs;
         }
         i++;
         lhs = () {
             Node* n = new Node();
-            n.type = cast(NodeType) op;
+            n.op = cast(NodeType) op;
             n.lhs = lhs;
-            n.rhs = term(tokens, i);
+            n.rhs = unary(tokens, i);
             return n;
         }();
     }
 }
+
+Node* unary(Token[] tokens, ref size_t i)
+{
+    // stderr.writeln(tokens, i);
+    if (consume(TokenType.ASTERISK, tokens, i))
+    {
+        Node* node = new Node();
+        node.op = NodeType.DEREFERENCE;
+        node.expr = mul(tokens, i);
+        return node;
+    }
+    else
+    {
+        return term(tokens, i);
+    }
+}
+
 // 項
 Node* term(Token[] tokens, ref size_t i)
 {
@@ -420,7 +467,7 @@ Node* term(Token[] tokens, ref size_t i)
     if (tokens[i].type == TokenType.NUM)
     {
         Node* n = new Node();
-        n.type = NodeType.NUM;
+        n.op = NodeType.NUM;
         n.val = tokens[i].val;
         i++;
         return n;
@@ -433,10 +480,10 @@ Node* term(Token[] tokens, ref size_t i)
         i++;
         if (!consume(TokenType.LEFT_PARENTHESE, tokens, i))
         {
-            n.type = NodeType.IDENTIFIER;
+            n.op = NodeType.IDENTIFIER;
             return n;
         }
-        n.type = NodeType.CALL;
+        n.op = NodeType.CALL;
         if (consume(TokenType.RIGHT_PARENTHESE, tokens, i))
         {
             return n;

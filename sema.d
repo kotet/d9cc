@@ -11,7 +11,7 @@ void semantics(ref Node[] nodes)
 {
     foreach (node; nodes)
     {
-        long[string] vars;
+        Variable[string] vars;
         size_t stacksize;
 
         walk(&node, vars, stacksize);
@@ -21,9 +21,15 @@ void semantics(ref Node[] nodes)
 
 private:
 
-void walk(Node* node, ref long[string] vars, ref size_t stacksize)
+struct Variable
 {
-    with (NodeType) switch (node.type)
+    Type type;
+    size_t offset;
+}
+
+void walk(Node* node, ref Variable[string] vars, ref size_t stacksize)
+{
+    with (NodeType) switch (node.op)
     {
     case NUM:
         return;
@@ -32,13 +38,19 @@ void walk(Node* node, ref long[string] vars, ref size_t stacksize)
         {
             error("Undefined variable: %s", node.name);
         }
-        node.type = VARIABLE_REFERENCE;
-        node.offset = vars[node.name];
+        node.op = VARIABLE_REFERENCE;
+        node.type = vars[node.name].type;
+        node.offset = vars[node.name].offset;
         return;
     case VARIABLE_DEFINITION:
         stacksize += 8;
-        vars[node.name] = stacksize;
         node.offset = stacksize;
+
+        Variable var;
+        var.type = node.type;
+        var.offset = stacksize;
+        vars[node.name] = var;
+
         if (node.initalize)
         {
             walk(node.initalize, vars, stacksize);
@@ -68,9 +80,12 @@ void walk(Node* node, ref long[string] vars, ref size_t stacksize)
     case LOGICAL_AND:
         walk(node.lhs, vars, stacksize);
         walk(node.rhs, vars, stacksize);
+        node.type = node.lhs.type;
         return;
+    case DEREFERENCE:
     case RETURN:
         walk(node.expr, vars, stacksize);
+        node.type = Type(TypeName.INT);
         return;
     case CALL:
         foreach (ref arg; node.args)
@@ -89,7 +104,7 @@ void walk(Node* node, ref long[string] vars, ref size_t stacksize)
         walk(node.expr, vars, stacksize);
         return;
     default:
-        error("Unknown node type: %s", node.type);
+        error("Unknown node type: %s", node.op);
         assert(0);
     }
 }

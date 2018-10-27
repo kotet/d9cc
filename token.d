@@ -23,7 +23,7 @@ enum TokenType
     LOGICAL_OR,
     ADD = '+',
     SUB = '-',
-    MUL = '*',
+    ASTERISK = '*',
     DIV = '/',
     SEMICOLONE = ';',
     ASSIGN = '=',
