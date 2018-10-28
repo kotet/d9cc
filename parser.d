@@ -226,13 +226,18 @@ Type type(Token[] tokens, ref size_t i)
         error("Type name expected, but got %s", tokens[i].input);
     }
     i++;
-    Type ty;
+    Type* ty = new Type();
     ty.type = TypeName.INT;
     while (consume(TokenType.ASTERISK, tokens, i))
     {
-        ty = Type(TypeName.POINTER,&ty);
+        ty = (){
+            Type* t = new Type();
+            t.type = TypeName.POINTER;
+            t.pointer_of = ty;
+            return t;
+        }();
     }
-    return ty;
+    return *ty;
 }
 
 // 文

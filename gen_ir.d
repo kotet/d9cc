@@ -8,6 +8,7 @@ import std.range : empty;
 
 import parser;
 import util;
+import sema;
 
 // 5+20-4 -> 
 // [IR(IMM, 0, 5), a = 5
@@ -335,9 +336,23 @@ long genExpression(ref IR[] ins, ref size_t regno, ref size_t label, Node* node)
             ins ~= IR(IRType.KILL, reg, -1);
         return r;
     case ADD:
-        return genBinaryOp(ins, regno, label, IRType.ADD, node.lhs, node.rhs);
     case SUB:
-        return genBinaryOp(ins, regno, label, IRType.SUB, node.lhs, node.rhs);
+        IRType insn = (node.op == NodeType.ADD) ? IRType.ADD : IRType.SUB;
+        if (node.lhs.type.type != TypeName.POINTER)
+        {
+            return genBinaryOp(ins, regno, label, insn, node.lhs, node.rhs);
+        }
+        // pointer_of_T + rhs -> pointer_of_T + (rhs * sizeof(T))
+        long r_rhs = genExpression(ins, regno, label, node.rhs);
+        long r_sizeof = regno;
+        regno++;
+        ins ~= IR(IRType.IMM, r_sizeof, size_of(*(node.lhs.type.pointer_of)));
+        ins ~= IR(IRType.MUL, r_rhs, r_sizeof);
+        ins ~= IR(IRType.KILL, r_sizeof);
+        long r_lhs = genExpression(ins, regno, label, node.lhs);
+        ins ~= IR(insn, r_lhs, r_rhs);
+        ins ~= IR(IRType.KILL, r_rhs);
+        return r_lhs;
     case MUL:
         return genBinaryOp(ins, regno, label, IRType.MUL, node.lhs, node.rhs);
     case DIV:

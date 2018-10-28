@@ -1,11 +1,22 @@
 module sema;
 
 import std.stdio : stderr;
+import std.algorithm : swap;
 
 import parser;
 import util;
 
 public:
+
+long size_of(Type t)
+{
+    if (t.type == TypeName.INT)
+    {
+        return 4;
+    }
+    assert(t.type == TypeName.POINTER);
+    return 8;
+}
 
 void semantics(ref Node[] nodes)
 {
@@ -72,6 +83,19 @@ void walk(Node* node, ref Variable[string] vars, ref size_t stacksize)
         return;
     case ADD:
     case SUB:
+        walk(node.lhs, vars, stacksize);
+        walk(node.rhs, vars, stacksize);
+        if (node.rhs.type.type == TypeName.POINTER)
+        {
+            // a - bがb - aになっちゃうけどいいんだろうか……
+            swap(node.lhs, node.rhs);
+        }
+        if (node.rhs.type.type == TypeName.POINTER)
+        {
+            error("Pointer %s pointer is not defined", cast(char) node.op);
+        }
+        node.type = node.lhs.type;
+        return;
     case MUL:
     case DIV:
     case ASSIGN:
@@ -83,6 +107,13 @@ void walk(Node* node, ref Variable[string] vars, ref size_t stacksize)
         node.type = node.lhs.type;
         return;
     case DEREFERENCE:
+        walk(node.expr, vars, stacksize);
+        if (node.expr.type.type != TypeName.POINTER)
+        {
+            error("Operand must be a pointer");
+        }
+        node.type = *(node.expr.type.pointer_of);
+        return;
     case RETURN:
         walk(node.expr, vars, stacksize);
         node.type = Type(TypeName.INT);
