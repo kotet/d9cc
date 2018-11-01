@@ -4,6 +4,7 @@ import std.stdio : stderr;
 import std.uni : isSpace;
 import std.ascii : isDigit, isAlpha;
 import std.algorithm : among;
+import std.meta : aliasSeqOf;
 
 import util;
 
@@ -31,6 +32,8 @@ enum TokenType
     RIGHT_PARENTHESE = ')',
     LEFT_BRACE = '{',
     RIGHT_BRACE = '}',
+    LEFT_BRACKET = '[',
+    RIGhT_BRACKET = ']',
     COMMA = ',',
     LESS_THAN = '<',
     GREATER_THAN = '>',
@@ -64,7 +67,7 @@ Token[] tokenize(string s)
         }
 
         // 1文字トークン
-        if (s[i].among!('+', '-', '*', '/', ';', '=', '(', ')', ',', '{', '}', '<', '>'))
+        if (s[i].among!(aliasSeqOf!"+-*/;=(),{}<>[]"))
         {
             Token t;
             t.type = cast(TokenType) s[i];

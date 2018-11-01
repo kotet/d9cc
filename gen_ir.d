@@ -29,15 +29,18 @@ enum IRType
     RETURN,
     KILL, // lhsに指定されたレジスタを解放する
     NOP,
-    LOAD,
-    STORE,
+    LOAD32,
+    LOAD64,
+    STORE32,
+    STORE64,
+    STORE32_ARG, // int引数の保持
+    STORE64_ARG, // ポインタ引数の保持
     ADD_IMM, // 即値add
     SUB_IMM, // 即値sub
     LABEL,
     UNLESS,
     JMP,
     CALL,
-    SAVE_ARGS, // 引数の保持
     LESS_THAN = '<',
     ADD = '+',
     SUB = '-',
@@ -55,6 +58,7 @@ enum IRInfo
     REG_LABEL,
     CALL,
     IMM,
+    IMM_IMM,
     JMP,
 }
 
@@ -77,8 +81,10 @@ struct IR
         case IRType.SUB:
         case IRType.MUL:
         case IRType.DIV:
-        case IRType.LOAD:
-        case IRType.STORE:
+        case IRType.LOAD32:
+        case IRType.LOAD64:
+        case IRType.STORE32:
+        case IRType.STORE64:
         case IRType.LESS_THAN:
             return IRInfo.REG_REG;
         case IRType.IMM:
@@ -98,8 +104,9 @@ struct IR
             return IRInfo.CALL;
         case IRType.NOP:
             return IRInfo.NOARG;
-        case IRType.SAVE_ARGS:
-            return IRInfo.IMM;
+        case IRType.STORE32_ARG:
+        case IRType.STORE64_ARG:
+            return IRInfo.IMM_IMM;
         default:
             assert(0);
         }
@@ -132,6 +139,8 @@ struct IR
             return format("  %s\t%d", this.op, this.lhs);
         case IRInfo.JMP:
             return format("  %s\t.L%s:", this.op, this.lhs);
+        case IRInfo.IMM_IMM:
+            return format("  %s\t%d\t%d", this.op, this.lhs, this.rhs);
         default:
             assert(0);
         }
@@ -155,9 +164,12 @@ Function[] genIR(Node[] nodes)
         size_t label;
         IR[] code;
 
-        // このif文不要では?
-        // if (nodes.length > 0)
-        code ~= IR(IRType.SAVE_ARGS, node.args.length);
+        foreach (i, arg; node.args)
+        {
+            IRType op = (arg.type.type == TypeName.POINTER) ? IRType.STORE64_ARG
+                : IRType.STORE32_ARG;
+            code ~= IR(op, arg.offset, i);
+        }
 
         code ~= genStatement(regno, label, node.bdy);
 
@@ -186,7 +198,8 @@ IR[] genStatement(ref size_t regno, ref size_t label, Node* node)
         regno++;
         result ~= IR(IRType.MOV, r_address, 0); // この0は即値ではなくベースレジスタの番号
         result ~= IR(IRType.SUB_IMM, r_address, node.offset);
-        result ~= IR(IRType.STORE, r_address, r_value);
+        IRType op = (node.type.type == TypeName.POINTER) ? IRType.STORE64 : IRType.STORE32;
+        result ~= IR(op, r_address, r_value);
         result ~= IR(IRType.KILL, r_address);
         result ~= IR(IRType.KILL, r_value);
         return result;
@@ -309,16 +322,20 @@ long genExpression(ref IR[] ins, ref size_t regno, ref size_t label, Node* node)
         return r1;
     case VARIABLE_REFERENCE:
         long r = genLval(ins, regno, label, node);
-        ins ~= IR(IRType.LOAD, r, r);
+        IRType op = (node.type.type == TypeName.POINTER) ? IRType.LOAD64 : IRType.LOAD32;
+        ins ~= IR(op, r, r);
         return r;
+    case ADDRESS:
+        return genLval(ins, regno, label, node.expr);
     case DEREFERENCE:
         long r = genExpression(ins, regno, label, node.expr);
-        ins ~= IR(IRType.LOAD, r, r);
+        ins ~= IR(IRType.LOAD64, r, r);
         return r;
     case ASSIGN:
         long rhs = genExpression(ins, regno, label, node.rhs);
         long lhs = genLval(ins, regno, label, node.lhs);
-        ins ~= IR(IRType.STORE, lhs, rhs);
+        IRType op = (node.type.type == TypeName.POINTER) ? IRType.STORE64 : IRType.STORE32;
+        ins ~= IR(op, lhs, rhs);
         ins ~= IR(IRType.KILL, rhs, -1);
         return lhs;
     case CALL:
@@ -368,15 +385,21 @@ long genExpression(ref IR[] ins, ref size_t regno, ref size_t label, Node* node)
 
 long genLval(ref IR[] ins, ref size_t regno, ref size_t label, Node* node)
 {
-    if (node.op != NodeType.VARIABLE_REFERENCE)
+    if (node.op == NodeType.VARIABLE_REFERENCE)
     {
-        error("Not an lvalue: %s (%s)", node.op, node.name);
+        long r = regno;
+        regno++;
+        ins ~= IR(IRType.MOV, r, 0);
+        ins ~= IR(IRType.SUB_IMM, r, node.offset);
+        return r;
     }
-    long r = regno;
-    regno++;
-    ins ~= IR(IRType.MOV, r, 0);
-    ins ~= IR(IRType.SUB_IMM, r, node.offset);
-    return r;
+    if (node.op == NodeType.DEREFERENCE)
+    {
+        return genExpression(ins, regno, label, node.expr);
+    }
+
+    error("Not an lvalue: %s (%s)", node.op, node.name);
+    assert(0);
 }
 
 long genBinaryOp(ref IR[] ins, ref size_t regno, ref size_t label, IRType type,

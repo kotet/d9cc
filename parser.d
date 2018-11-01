@@ -37,6 +37,7 @@ enum NodeType
     FUNCTION,
     LOGICAL_AND,
     LOGICAL_OR,
+    ADDRESS,
     LESS_THAN = '<',
     ADD = '+',
     SUB = '-',
@@ -49,12 +50,17 @@ enum TypeName
 {
     INT,
     POINTER,
+    ARRAY,
 }
 
 struct Type
 {
     TypeName type;
     Type* pointer_of;
+
+    // 配列
+    Type* array_of;
+    size_t array_length;
 }
 
 struct Node
@@ -88,7 +94,7 @@ struct Node
     // 変数関連ノード用
     size_t offset;
 
-    Type type;
+    Type* type;
 }
 
 Node[] parse(Token[] tokens)
@@ -203,14 +209,42 @@ Node* param(Token[] tokens, ref size_t i)
 Node* declaration(Token[] tokens, ref size_t i)
 {
     Node* node = new Node();
-    node.type = type(tokens, i);
     node.op = NodeType.VARIABLE_DEFINITION;
+    // 型名
+    node.type = type(tokens, i);
+
+    // 変数名
     if (tokens[i].type != TokenType.IDENTIFIER)
     {
         error("Variable name expected, but got %s", tokens[i].input);
     }
     node.name = tokens[i].name;
     i++;
+
+    // 配列
+    Node[] array_size;
+    while (consume(TokenType.LEFT_BRACKET, tokens, i))
+    {
+        Node* length = term(tokens, i);
+        if (length.op != NodeType.NUM)
+        {
+            error("Number expected, but got %s", length.type);
+        }
+        array_size ~= *length;
+        expect(']', tokens, i);
+    }
+    foreach_reverse (length; array_size)
+    {
+        node.type = () {
+            Type* t = new Type();
+            t.type = TypeName.ARRAY;
+            t.array_of = node.type;
+            t.array_length = length.val;
+            return t;
+        }();
+    }
+
+    // 初期化
     if (consume(TokenType.ASSIGN, tokens, i))
     {
         node.initalize = assign(tokens, i);
@@ -219,7 +253,7 @@ Node* declaration(Token[] tokens, ref size_t i)
     return node;
 }
 
-Type type(Token[] tokens, ref size_t i)
+Type* type(Token[] tokens, ref size_t i)
 {
     if (tokens[i].type != TokenType.INT)
     {
@@ -230,14 +264,14 @@ Type type(Token[] tokens, ref size_t i)
     ty.type = TypeName.INT;
     while (consume(TokenType.ASTERISK, tokens, i))
     {
-        ty = (){
+        ty = () {
             Type* t = new Type();
             t.type = TypeName.POINTER;
             t.pointer_of = ty;
             return t;
         }();
     }
-    return *ty;
+    return ty;
 }
 
 // 文
@@ -443,7 +477,6 @@ Node* mul(Token[] tokens, ref size_t i)
 
 Node* unary(Token[] tokens, ref size_t i)
 {
-    // stderr.writeln(tokens, i);
     if (consume(TokenType.ASTERISK, tokens, i))
     {
         Node* node = new Node();
@@ -473,6 +506,7 @@ Node* term(Token[] tokens, ref size_t i)
     {
         Node* n = new Node();
         n.op = NodeType.NUM;
+        n.type = new Type(TypeName.INT);
         n.val = tokens[i].val;
         i++;
         return n;
