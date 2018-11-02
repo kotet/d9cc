@@ -136,6 +136,23 @@ bool isTypeName(Token t)
     return t.type == TokenType.INT;
 }
 
+Node* newBinOp(NodeType op, Node* lhs, Node* rhs)
+{
+    Node* node = new Node();
+    node.op = op;
+    node.lhs = lhs;
+    node.rhs = rhs;
+    return node;
+}
+
+Node* newExpr(NodeType op, Node* expr)
+{
+    Node* node = new Node();
+    node.op = op;
+    node.expr = expr;
+    return node;
+}
+
 // 関数
 Node* func(Token[] tokens, ref size_t i)
 {
@@ -185,9 +202,7 @@ Node* compound_stmt(Token[] tokens, ref size_t i)
 // 制御構造でない文
 Node* expressionStatement(Token[] tokens, ref size_t i)
 {
-    Node* node = new Node();
-    node.op = NodeType.EXPRESSION_STATEMENT;
-    node.expr = assign(tokens, i);
+    Node* node = newExpr(NodeType.EXPRESSION_STATEMENT, assign(tokens, i));
     expect(';', tokens, i);
     return node;
 }
@@ -320,10 +335,9 @@ Node* stmt(Token[] tokens, ref size_t i)
         return node;
     case TokenType.RETURN:
         i++;
-        node.op = NodeType.RETURN;
-        node.expr = assign(tokens, i);
+        Node* n = newExpr(NodeType.RETURN, assign(tokens, i));
         expect(';', tokens, i);
-        return node;
+        return n;
     case TokenType.LEFT_BRACE:
         i++;
         node.op = NodeType.COMPOUND_STATEMENT;
@@ -347,18 +361,12 @@ Node* assign(Token[] tokens, ref size_t i)
 
     if (consume(TokenType.ASSIGN, tokens, i))
     {
-        return () {
-            Node* n = new Node();
-            n.op = NodeType.ASSIGN;
-            n.lhs = lhs;
-            n.rhs = logicalOr(tokens, i);
-            return n;
-        }();
+        return newBinOp(NodeType.ASSIGN, lhs, logicalOr(tokens, i));
     }
     return lhs;
 }
 
-// Cでは論理演���子の間に優先順位がある
+// Cでは論理演算子の間に優先順位がある
 // or式
 Node* logicalOr(Token[] tokens, ref size_t i)
 {
@@ -372,13 +380,7 @@ Node* logicalOr(Token[] tokens, ref size_t i)
             return lhs;
         }
         i++;
-        lhs = () {
-            Node* n = new Node();
-            n.op = NodeType.LOGICAL_OR;
-            n.lhs = lhs;
-            n.rhs = logicalAnd(tokens, i);
-            return n;
-        }();
+        lhs = newBinOp(NodeType.LOGICAL_OR, lhs, logicalAnd(tokens, i));
     }
 }
 // and式
@@ -394,13 +396,7 @@ Node* logicalAnd(Token[] tokens, ref size_t i)
             return lhs;
         }
         i++;
-        lhs = () {
-            Node* n = new Node();
-            n.op = NodeType.LOGICAL_AND;
-            n.lhs = lhs;
-            n.rhs = rel(tokens, i);
-            return n;
-        }();
+        lhs = newBinOp(NodeType.LOGICAL_AND, lhs, rel(tokens, i));
     }
 }
 // 大小比較
@@ -414,25 +410,13 @@ Node* rel(Token[] tokens, ref size_t i)
         if (op == TokenType.LESS_THAN)
         {
             i++;
-            lhs = () {
-                Node* n = new Node();
-                n.op = NodeType.LESS_THAN;
-                n.lhs = lhs;
-                n.rhs = add(tokens, i);
-                return n;
-            }();
+            lhs = newBinOp(NodeType.LESS_THAN, lhs, add(tokens, i));
             continue;
         }
         if (op == TokenType.GREATER_THAN)
         {
             i++;
-            lhs = () {
-                Node* n = new Node();
-                n.op = NodeType.LESS_THAN;
-                n.lhs = add(tokens, i);
-                n.rhs = lhs;
-                return n;
-            }();
+            lhs = newBinOp(NodeType.LESS_THAN, add(tokens, i), lhs);
             continue;
         }
         return lhs;
@@ -451,13 +435,7 @@ Node* add(Token[] tokens, ref size_t i)
             return lhs;
         }
         i++;
-        lhs = () {
-            Node* n = new Node();
-            n.op = cast(NodeType) op;
-            n.lhs = lhs;
-            n.rhs = mul(tokens, i);
-            return n;
-        }();
+        lhs = newBinOp(cast(NodeType) op, lhs, mul(tokens, i));
     }
 }
 // 乗算式
@@ -473,13 +451,7 @@ Node* mul(Token[] tokens, ref size_t i)
             return lhs;
         }
         i++;
-        lhs = () {
-            Node* n = new Node();
-            n.op = cast(NodeType) op;
-            n.lhs = lhs;
-            n.rhs = unary(tokens, i);
-            return n;
-        }();
+        lhs = newBinOp(cast(NodeType) op, lhs, unary(tokens, i));
     }
 }
 
@@ -487,25 +459,16 @@ Node* unary(Token[] tokens, ref size_t i)
 {
     if (consume(TokenType.ASTERISK, tokens, i))
     {
-        Node* node = new Node();
-        node.op = NodeType.DEREFERENCE;
-        node.expr = mul(tokens, i);
-        return node;
+        return newExpr(NodeType.DEREFERENCE, mul(tokens, i));
     }
 
     if (consume(TokenType.AMPERSAND, tokens, i))
     {
-        Node* node = new Node();
-        node.op = NodeType.ADDRESS;
-        node.expr = mul(tokens, i);
-        return node;
+        return newExpr(NodeType.ADDRESS, mul(tokens, i));
     }
     if (consume(TokenType.SIZEOF, tokens, i))
     {
-        Node* node = new Node();
-        node.op = NodeType.SIZEOF;
-        node.expr = mul(tokens, i);
-        return node;
+        return newExpr(NodeType.SIZEOF, mul(tokens, i));
     }
 
     return postfix(tokens, i);
@@ -518,17 +481,7 @@ Node* postfix(Token[] tokens, ref size_t i)
     Node* lhs = primary(tokens, i);
     while (consume(TokenType.LEFT_BRACKET, tokens, i))
     {
-        Node* add = new Node();
-        add.op = NodeType.ADD;
-        add.lhs = lhs;
-        add.rhs = primary(tokens, i);
-
-        Node* node = new Node();
-        node.op = NodeType.DEREFERENCE;
-        node.expr = add;
-
-        lhs = node;
-
+        lhs = newExpr(NodeType.DEREFERENCE, newBinOp(NodeType.ADD, lhs, primary(tokens, i)));
         expect(']', tokens, i);
     }
     return lhs;
@@ -580,6 +533,7 @@ Node* primary(Token[] tokens, ref size_t i)
         return n;
     }
 
+    stderr.writeln(tokens, i);
     error("Number expected, but got %s", tokens[i].input);
     assert(0);
 }
