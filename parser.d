@@ -44,6 +44,7 @@ enum NodeType : int
     LOGICAL_AND,
     LOGICAL_OR,
     ADDRESS,
+    SIZEOF,
 }
 
 enum TypeName
@@ -489,6 +490,13 @@ Node* unary(Token[] tokens, ref size_t i)
     {
         Node* node = new Node();
         node.op = NodeType.ADDRESS;
+        node.expr = mul(tokens, i);
+        return node;
+    }
+    if (consume(TokenType.SIZEOF, tokens, i))
+    {
+        Node* node = new Node();
+        node.op = NodeType.SIZEOF;
         node.expr = mul(tokens, i);
         return node;
     }

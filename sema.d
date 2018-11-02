@@ -165,6 +165,15 @@ Node* walk(Node* node, bool decay, ref Variable[string] vars, ref size_t stacksi
         node.expr = walk(node.expr, true, vars, stacksize);
         node.type = node.expr.type.pointer_of;
         return node;
+    case SIZEOF:
+        return () {
+            Node* expr = walk(node.expr, false, vars, stacksize);
+            Node* n = new Node();
+            n.op = NodeType.NUM;
+            n.type = new Type(TypeName.INT);
+            n.val = cast(int) size_of(*expr.type);
+            return n;
+        }();
     default:
         error("Unknown node type: %s", node.op);
         assert(0);

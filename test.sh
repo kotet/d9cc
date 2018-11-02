@@ -104,6 +104,10 @@ echo
 try 3 'int main() { int ary[2]; *ary=1; *(ary+1)=2; return *ary + *(ary+1);}'
 echo
 try 5 'int main() { int x; int *p = &x; x = 5; return *p;}'
+echo
+try 4 'int main() { int x; return sizeof(x); }'
+try 8 'int main() { int *x; return sizeof x; }'
+try 16 'int main() { int x[4]; return sizeof x; }'
 
 echo
 echo "＿人人人＿"
