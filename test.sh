@@ -102,6 +102,8 @@ try 9 'int main() { int *p = alloc2(2, 7); return *p + *(p - 1); }'
 try 2 'int main() { int **p = alloc_ptr_ptr(2); return **p; }'
 echo
 try 3 'int main() { int ary[2]; *ary=1; *(ary+1)=2; return *ary + *(ary+1);}'
+echo
+try 5 'int main() { int x; int *p = &x; x = 5; return *p;}'
 
 echo
 echo "＿人人人＿"

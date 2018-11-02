@@ -165,6 +165,10 @@ void walk(Node* node, bool decay, ref Variable[string] vars, ref size_t stacksiz
     case EXPRESSION_STATEMENT:
         walk(node.expr, true, vars, stacksize);
         return;
+    case ADDRESS:
+        walk(node.expr, true, vars, stacksize);
+        node.type = node.expr.type.pointer_of;
+        return;
     default:
         error("Unknown node type: %s", node.op);
         assert(0);

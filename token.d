@@ -69,18 +69,6 @@ Token[] tokenize(string s)
             continue;
         }
 
-        // 1文字トークン
-        if (s[i].among!(aliasSeqOf!"+-*/;=(),{}<>[]&"))
-        {
-            Token t;
-            t.type = cast(TokenType) s[i];
-            t.input = s[i .. i + 1];
-
-            result ~= t;
-            i++;
-            continue;
-        }
-
         // 複数文字トークン
         foreach (symbol, type; symbols)
         {
@@ -93,6 +81,18 @@ Token[] tokenize(string s)
                 result ~= t;
                 continue while_loop;
             }
+        }
+
+        // 1文字トークン
+        if (s[i].among!(aliasSeqOf!"+-*/;=(),{}<>[]&"))
+        {
+            Token t;
+            t.type = cast(TokenType) s[i];
+            t.input = s[i .. i + 1];
+
+            result ~= t;
+            i++;
+            continue;
         }
 
         // 数値

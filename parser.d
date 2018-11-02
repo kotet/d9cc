@@ -484,10 +484,17 @@ Node* unary(Token[] tokens, ref size_t i)
         node.expr = mul(tokens, i);
         return node;
     }
-    else
+
+    if (consume(TokenType.AMPERSAND, tokens, i))
     {
-        return term(tokens, i);
+        Node* node = new Node();
+        node.op = NodeType.ADDRESS;
+        node.expr = mul(tokens, i);
+        return node;
     }
+
+    return term(tokens, i);
+
 }
 
 // 項
