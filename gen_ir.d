@@ -22,9 +22,14 @@ import sema;
 
 public:
 
-enum IRType
+enum IRType : int
 {
-    IMM, // IMmediate Move (即値move) の略? 
+    LESS_THAN = '<',
+    ADD = '+',
+    SUB = '-',
+    MUL = '*',
+    DIV = '/',
+    IMM = 256, // IMmediate Move (即値move) の略? 
     MOV,
     RETURN,
     KILL, // lhsに指定されたレジスタを解放する
@@ -41,11 +46,6 @@ enum IRType
     UNLESS,
     JMP,
     CALL,
-    LESS_THAN = '<',
-    ADD = '+',
-    SUB = '-',
-    MUL = '*',
-    DIV = '/',
 }
 
 enum IRInfo

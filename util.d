@@ -35,3 +35,20 @@ void error(A...)(string msg, A args)
     stderr.writefln(msg, args);
     throw new ExitException(-1);
 }
+
+// Enumの番号を表示
+mixin template debugEnum(E)
+{
+    import std.traits : EnumMembers;
+
+    pragma(msg, E, ":");
+    static foreach (e; EnumMembers!E)
+        static if (e <= char.max)
+            {
+            pragma(msg, "\t", cast(char) e, "\t= ", cast(int) e);
+        }
+        else
+            {
+            pragma(msg, "\t", cast(int) e, "\t= ", cast(int) e);
+        }
+}

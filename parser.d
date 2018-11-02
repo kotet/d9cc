@@ -21,9 +21,15 @@ import util;
 
 public:
 
-enum NodeType
+enum NodeType : int
 {
-    NUM,
+    LESS_THAN = '<',
+    ADD = '+',
+    SUB = '-',
+    MUL = '*',
+    DIV = '/',
+    ASSIGN = '=',
+    NUM = 256,
     IDENTIFIER,
     VARIABLE_DEFINITION,
     VARIABLE_REFERENCE,
@@ -38,12 +44,6 @@ enum NodeType
     LOGICAL_AND,
     LOGICAL_OR,
     ADDRESS,
-    LESS_THAN = '<',
-    ADD = '+',
-    SUB = '-',
-    MUL = '*',
-    DIV = '/',
-    ASSIGN = '=',
 }
 
 enum TypeName

@@ -10,18 +10,8 @@ import util;
 
 public:
 
-enum TokenType
+enum TokenType : int
 {
-    NUM,
-    IDENTIFIER,
-    INT,
-    RETURN,
-    IF,
-    FOR,
-    ELSE,
-    EOF,
-    LOGICAL_AND,
-    LOGICAL_OR,
     ADD = '+',
     SUB = '-',
     ASTERISK = '*',
@@ -37,6 +27,19 @@ enum TokenType
     COMMA = ',',
     LESS_THAN = '<',
     GREATER_THAN = '>',
+    AMPERSAND = '&',
+    // 1文字トークン以外はcharの範囲外の数値にする
+    // まあ9ccと違って1文字トークンにも名前を付けているので意味ないけど……
+    NUM = 256,
+    IDENTIFIER,
+    INT,
+    RETURN,
+    IF,
+    FOR,
+    ELSE,
+    EOF,
+    LOGICAL_AND,
+    LOGICAL_OR,
 }
 
 struct Token
@@ -67,7 +70,7 @@ Token[] tokenize(string s)
         }
 
         // 1文字トークン
-        if (s[i].among!(aliasSeqOf!"+-*/;=(),{}<>[]"))
+        if (s[i].among!(aliasSeqOf!"+-*/;=(),{}<>[]&"))
         {
             Token t;
             t.type = cast(TokenType) s[i];
