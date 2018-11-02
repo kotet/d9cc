@@ -397,8 +397,6 @@ long genLval(ref IR[] ins, ref size_t regno, ref size_t label, Node* node)
     {
         return genExpression(ins, regno, label, node.expr);
     }
-
-    error("Not an lvalue: %s (%s)", node.op, node.name);
     assert(0);
 }
 

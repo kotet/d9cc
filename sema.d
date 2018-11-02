@@ -129,6 +129,10 @@ Node* walk(Node* node, bool decay, ref Variable[string] vars, ref size_t stacksi
         return node;
     case ASSIGN:
         node.lhs = walk(node.lhs, false, vars, stacksize);
+        if (node.lhs.op != NodeType.DEREFERENCE && node.lhs.op != NodeType.VARIABLE_REFERENCE)
+        {
+            error("Not an lvalue: %s (%s)", node.op, node.name);
+        }
         node.rhs = walk(node.rhs, true, vars, stacksize);
         node.type = node.lhs.type;
         return node;
