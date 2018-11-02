@@ -223,27 +223,8 @@ Node* declaration(Token[] tokens, ref size_t i)
     i++;
 
     // 配列
-    Node[] array_size;
-    while (consume(TokenType.LEFT_BRACKET, tokens, i))
-    {
-        Node* length = term(tokens, i);
-        if (length.op != NodeType.NUM)
-        {
-            error("Number expected, but got %s", length.type);
-        }
-        array_size ~= *length;
-        expect(']', tokens, i);
-    }
-    foreach_reverse (length; array_size)
-    {
-        node.type = () {
-            Type* t = new Type();
-            t.type = TypeName.ARRAY;
-            t.array_of = node.type;
-            t.array_length = length.val;
-            return t;
-        }();
-    }
+
+    node.type = readArray(node.type, tokens, i);
 
     // 初期化
     if (consume(TokenType.ASSIGN, tokens, i))
@@ -273,6 +254,32 @@ Type* type(Token[] tokens, ref size_t i)
         }();
     }
     return ty;
+}
+
+Type* readArray(Type* type, Token[] tokens, ref size_t i)
+{
+    Node[] array_size;
+    while (consume(TokenType.LEFT_BRACKET, tokens, i))
+    {
+        Node* length = primary(tokens, i);
+        if (length.op != NodeType.NUM)
+        {
+            error("Number expected, but got %s", length.type);
+        }
+        array_size ~= *length;
+        expect(']', tokens, i);
+    }
+    foreach_reverse (length; array_size)
+    {
+        type = () {
+            Type* t = new Type();
+            t.type = TypeName.ARRAY;
+            t.array_of = type;
+            t.array_length = length.val;
+            return t;
+        }();
+    }
+    return type;
 }
 
 // 文
@@ -351,7 +358,7 @@ Node* assign(Token[] tokens, ref size_t i)
     return lhs;
 }
 
-// Cでは論理演算子の間に優先順位がある
+// Cでは論理演���子の間に優先順位がある
 // or式
 Node* logicalOr(Token[] tokens, ref size_t i)
 {
@@ -501,12 +508,34 @@ Node* unary(Token[] tokens, ref size_t i)
         return node;
     }
 
-    return term(tokens, i);
+    return postfix(tokens, i);
 
 }
 
+// ary[x][y] -> *(ary + x)[y] -> *(*(ary + x) + y)
+Node* postfix(Token[] tokens, ref size_t i)
+{
+    Node* lhs = primary(tokens, i);
+    while (consume(TokenType.LEFT_BRACKET, tokens, i))
+    {
+        Node* add = new Node();
+        add.op = NodeType.ADD;
+        add.lhs = lhs;
+        add.rhs = primary(tokens, i);
+
+        Node* node = new Node();
+        node.op = NodeType.DEREFERENCE;
+        node.expr = add;
+
+        lhs = node;
+
+        expect(']', tokens, i);
+    }
+    return lhs;
+}
+
 // 項
-Node* term(Token[] tokens, ref size_t i)
+Node* primary(Token[] tokens, ref size_t i)
 {
 
     if (tokens[i].type == TokenType.LEFT_PARENTHESE)
