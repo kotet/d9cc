@@ -19,6 +19,7 @@ void generate_x86(Function[] fns)
 
 private:
 
+static immutable string[] regs_arg8 = ["dil", "sil", "dl", "cl", "r8b", "r9b"];
 static immutable string[] regs_arg32 = ["edi", "esi", "edx", "ecx", "r8d", "r9d"];
 static immutable string[] regs_arg64 = ["rdi", "rsi", "rdx", "rcx", "r8", "r9"];
 
@@ -90,6 +91,14 @@ void gen(Function fn, ref size_t labelcnt)
             writefln("  mov [%s], %s", registers[ir.lhs],
                     registers_lower_32bits[ir.rhs]);
             break;
+        case IRType.LOAD8:
+            writefln("  mov %s, [%s]",
+                    registers_lower_8bits[ir.lhs], registers[ir.rhs]);
+            break;
+        case IRType.STORE8:
+            writefln("  mov [%s], %s", registers[ir.lhs],
+                    registers_lower_8bits[ir.rhs]);
+            break;
         case IRType.ADD_IMM:
             writefln("  add %s, %d", registers[ir.lhs], ir.rhs);
             break;
@@ -147,8 +156,11 @@ void gen(Function fn, ref size_t labelcnt)
 
             writefln("  mov %s, rax", registers[ir.lhs]);
             break;
-        case IRType.STORE32_ARG:
+        case IRType.STORE8_ARG:
             // rbpからの相対アドレス
+            writefln("  mov [rbp-%d], %s", ir.lhs, regs_arg8[ir.rhs]);
+            break;
+        case IRType.STORE32_ARG:
             writefln("  mov [rbp-%d], %s", ir.lhs, regs_arg32[ir.rhs]);
             break;
         case IRType.STORE64_ARG:

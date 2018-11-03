@@ -52,6 +52,7 @@ enum TypeName
     INT,
     POINTER,
     ARRAY,
+    CHAR,
 }
 
 struct Type
@@ -131,9 +132,17 @@ bool consume(TokenType type, Token[] tokens, ref size_t i)
     return false;
 }
 
-bool isTypeName(Token t)
+Type* getType(Token t)
 {
-    return t.type == TokenType.INT;
+    switch (t.type)
+    {
+    case TokenType.INT:
+        return new Type(TypeName.INT);
+    case TokenType.CHAR:
+        return new Type(TypeName.CHAR);
+    default:
+        return null;
+    }
 }
 
 Node* newBinOp(NodeType op, Node* lhs, Node* rhs)
@@ -252,13 +261,12 @@ Node* declaration(Token[] tokens, ref size_t i)
 
 Type* type(Token[] tokens, ref size_t i)
 {
-    if (tokens[i].type != TokenType.INT)
+    Type* ty = getType(tokens[i]);
+    if (!ty)
     {
         error("Type name expected, but got %s", tokens[i].input);
     }
     i++;
-    Type* ty = new Type();
-    ty.type = TypeName.INT;
     while (consume(TokenType.ASTERISK, tokens, i))
     {
         ty = () {
@@ -319,7 +327,7 @@ Node* stmt(Token[] tokens, ref size_t i)
         i++;
         node.op = NodeType.FOR;
         expect('(', tokens, i);
-        if (isTypeName(tokens[i]))
+        if (getType(tokens[i]))
         {
             node.initalize = declaration(tokens, i);
         }
@@ -347,6 +355,7 @@ Node* stmt(Token[] tokens, ref size_t i)
         }
         return node;
     case TokenType.INT:
+    case TokenType.CHAR:
         return declaration(tokens, i);
     default:
         return expressionStatement(tokens, i);

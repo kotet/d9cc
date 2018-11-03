@@ -41,6 +41,7 @@ enum TokenType : int
     LOGICAL_AND,
     LOGICAL_OR,
     SIZEOF,
+    CHAR,
 }
 
 struct Token
@@ -58,7 +59,7 @@ Token[] tokenize(string s)
     TokenType[string] symbols = [
         "int" : TokenType.INT, "return" : TokenType.RETURN, "if" : TokenType.IF,
         "for" : TokenType.FOR, "else" : TokenType.ELSE, "&&" : TokenType.LOGICAL_AND,
-        "||" : TokenType.LOGICAL_OR, "sizeof" : TokenType.SIZEOF,
+        "||" : TokenType.LOGICAL_OR, "sizeof" : TokenType.SIZEOF, "char" : TokenType.CHAR,
     ];
 
     while_loop: while (i < s.length) // Dの文字列はNull終端ではない

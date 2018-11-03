@@ -10,16 +10,18 @@ public:
 
 long size_of(Type t)
 {
-    if (t.type == TypeName.INT)
+    with (TypeName) switch (t.type)
     {
+    case CHAR:
+        return 1;
+    case INT:
         return 4;
-    }
-    if (t.type == TypeName.ARRAY)
-    {
+    case ARRAY:
         return size_of(*t.array_of) * t.array_length;
+    default:
+        assert(t.type == TypeName.POINTER);
+        return 8;
     }
-    assert(t.type == TypeName.POINTER);
-    return 8;
 }
 
 void semantics(ref Node[] nodes)

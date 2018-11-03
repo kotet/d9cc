@@ -34,10 +34,13 @@ enum IRType : int
     RETURN,
     KILL, // lhsに指定されたレジスタを解放する
     NOP,
+    LOAD8,
     LOAD32,
     LOAD64,
+    STORE8,
     STORE32,
     STORE64,
+    STORE8_ARG, // char引数の保持
     STORE32_ARG, // int引数の保持
     STORE64_ARG, // ポインタ引数の保持
     ADD_IMM, // 即値add
@@ -81,8 +84,10 @@ struct IR
         case IRType.SUB:
         case IRType.MUL:
         case IRType.DIV:
+        case IRType.LOAD8:
         case IRType.LOAD32:
         case IRType.LOAD64:
+        case IRType.STORE8:
         case IRType.STORE32:
         case IRType.STORE64:
         case IRType.LESS_THAN:
@@ -104,6 +109,7 @@ struct IR
             return IRInfo.CALL;
         case IRType.NOP:
             return IRInfo.NOARG;
+        case IRType.STORE8_ARG:
         case IRType.STORE32_ARG:
         case IRType.STORE64_ARG:
             return IRInfo.IMM_IMM;
@@ -166,9 +172,18 @@ Function[] genIR(Node[] nodes)
 
         foreach (i, arg; node.args)
         {
-            IRType op = (arg.type.type == TypeName.POINTER) ? IRType.STORE64_ARG
-                : IRType.STORE32_ARG;
-            code ~= IR(op, arg.offset, i);
+            switch (arg.type.type)
+            {
+            case TypeName.CHAR:
+                code ~= IR(IRType.STORE8_ARG, arg.offset, i);
+                break;
+            case TypeName.POINTER:
+                code ~= IR(IRType.STORE64_ARG, arg.offset, i);
+                break;
+            default:
+                code ~= IR(IRType.STORE32_ARG, arg.offset, i);
+                break;
+            }
         }
 
         code ~= genStatement(regno, label, node.bdy);
@@ -198,8 +213,18 @@ IR[] genStatement(ref size_t regno, ref size_t label, Node* node)
         regno++;
         result ~= IR(IRType.MOV, r_address, 0); // この0は即値ではなくベースレジスタの番号
         result ~= IR(IRType.SUB_IMM, r_address, node.offset);
-        IRType op = (node.type.type == TypeName.POINTER) ? IRType.STORE64 : IRType.STORE32;
-        result ~= IR(op, r_address, r_value);
+        switch (node.type.type)
+        {
+        case TypeName.CHAR:
+            result ~= IR(IRType.STORE8, r_address, r_value);
+            break;
+        case TypeName.POINTER:
+            result ~= IR(IRType.STORE64, r_address, r_value);
+            break;
+        default:
+            result ~= IR(IRType.STORE32, r_address, r_value);
+            break;
+        }
         result ~= IR(IRType.KILL, r_address);
         result ~= IR(IRType.KILL, r_value);
         return result;
@@ -295,7 +320,7 @@ long genExpression(ref IR[] ins, ref size_t regno, ref size_t label, Node* node)
         ins ~= IR(IRType.UNLESS, r1, l);
 
         // true && true の時r1に入っている値は0以外
-        // そのままだとあとで困るので1を返す
+        // そのままだとあとで��るので1を返す
         ins ~= IR(IRType.IMM, r1, 1);
 
         ins ~= IR(IRType.LABEL, l);
@@ -322,8 +347,18 @@ long genExpression(ref IR[] ins, ref size_t regno, ref size_t label, Node* node)
         return r1;
     case VARIABLE_REFERENCE:
         long r = genLval(ins, regno, label, node);
-        IRType op = (node.type.type == TypeName.POINTER) ? IRType.LOAD64 : IRType.LOAD32;
-        ins ~= IR(op, r, r);
+        switch (node.type.type)
+        {
+        case TypeName.CHAR:
+            ins ~= IR(IRType.LOAD8, r, r);
+            break;
+        case TypeName.POINTER:
+            ins ~= IR(IRType.LOAD64, r, r);
+            break;
+        default:
+            ins ~= IR(IRType.LOAD32, r, r);
+            break;
+        }
         return r;
     case ADDRESS:
         return genLval(ins, regno, label, node.expr);
