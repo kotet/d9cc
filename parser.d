@@ -31,8 +31,10 @@ enum NodeType : int
     ASSIGN = '=',
     NUM = 256,
     IDENTIFIER,
+    STRING,
     VARIABLE_DEFINITION,
-    VARIABLE_REFERENCE,
+    LOCAL_VARIABLE,
+    GLOBAL_VARIABLE,
     DEREFERENCE,
     RETURN,
     IF,
@@ -69,20 +71,21 @@ struct Node
 {
     NodeType op;
 
-    // (type == LOGICAL_AND, LOGICAL_OR, LESS_THAN, ADD, SUB, MUL, DIV, ASSIGN)
+    // (op == LOGICAL_AND, LOGICAL_OR, LESS_THAN, ADD, SUB, MUL, DIV, ASSIGN)
     Node* lhs = null;
     Node* rhs = null;
 
-    int val; // 値リテラル (type == NUM)
-    string name; // 変数名または関数名 (type == IDENTIFIER, FUNCTION)
-    Node* expr; // 式 (type == EXPRESSION_STATEMENT, RETURN)
-    Node[] statements; // 文 (type == COMPOUND_STATEMENT)
+    int val; // 値リテラル (op == NUM)
+    string str; // 文字列リテラル (op == STRING)
+    string name; // 変数名または関数名 (op == IDENTIFIER, FUNCTION)
+    Node* expr; // 式 (op == EXPRESSION_STATEMENT, RETURN)
+    Node[] statements; // 文 (op == COMPOUND_STATEMENT)
 
     // typeの値によって役割が変わる
-    // function (<args>){<body>} (type == FUNCTION)
-    // if (<cond>) <then> else <els> (type == IF)
-    // for (<init>;<cond>;<inc>) <body> (type == FOR)
-    // function(<args>) (type == CALL)
+    // function (<args>){<body>} (op == FUNCTION)
+    // if (<cond>) <then> else <els> (op == IF)
+    // for (<init>;<cond>;<inc>) <body> (op == FOR)
+    // function(<args>) (op == CALL)
     Node* initalize;
     Node* cond;
     Node* inc;
@@ -93,6 +96,8 @@ struct Node
 
     // FUNCTIONノード用
     size_t stacksize;
+    Node[] strings;
+
     // 変数関連ノード用
     size_t offset;
 
@@ -542,7 +547,22 @@ Node* primary(Token[] tokens, ref size_t i)
         return n;
     }
 
-    stderr.writeln(tokens, i);
+    if (tokens[i].type == TokenType.STRING)
+    {
+        Node* n = new Node();
+        n.op = NodeType.STRING;
+        n.type = () {
+            Type* t = new Type();
+            t.type = TypeName.ARRAY;
+            t.array_of = new Type(TypeName.CHAR);
+            t.array_length = tokens[i].str.length;
+            return t;
+        }();
+        n.str = tokens[i].str;
+        i++;
+        return n;
+    }
+
     error("Number expected, but got %s", tokens[i].input);
     assert(0);
 }

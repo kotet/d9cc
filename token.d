@@ -42,12 +42,14 @@ enum TokenType : int
     LOGICAL_OR,
     SIZEOF,
     CHAR,
+    STRING,
 }
 
 struct Token
 {
     TokenType type;
     int val; // 数値リテラルデータ
+    string str; // 文字列リテラルデータ
     string name; // 変数名
     string input; // エラー報告用のトークン文字列
 }
@@ -68,6 +70,28 @@ Token[] tokenize(string s)
         if (s[i].isSpace())
         {
             i++;
+            continue;
+        }
+
+        // 文字列
+        if (s[i] == '"')
+        {
+            Token t;
+            t.type = TokenType.STRING;
+            i++;
+            size_t len;
+            while (i + len < s.length && s[i + len] != '"')
+            {
+                len++;
+            }
+            if (s.length <= i + len)
+            {
+                error("Premature end of input");
+            }
+            t.str = s[i .. i + len];
+            t.input = s[i - 1 .. i + len + 1];
+            i += len + 1;
+            result ~= t;
             continue;
         }
 

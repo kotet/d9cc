@@ -46,6 +46,7 @@ enum IRType : int
     ADD_IMM, // 即値add
     SUB_IMM, // 即値sub
     LABEL,
+    LABEL_ADDRESS,
     UNLESS,
     JMP,
     CALL,
@@ -56,6 +57,7 @@ enum IRInfo
     NOARG,
     REG,
     LABEL,
+    LABEL_ADDRESS,
     REG_REG,
     REG_IMM,
     REG_LABEL,
@@ -113,6 +115,8 @@ struct IR
         case IRType.STORE32_ARG:
         case IRType.STORE64_ARG:
             return IRInfo.IMM_IMM;
+        case IRType.LABEL_ADDRESS:
+            return IRInfo.LABEL_ADDRESS;
         default:
             assert(0);
         }
@@ -147,6 +151,8 @@ struct IR
             return format("  %s\t.L%s:", this.op, this.lhs);
         case IRInfo.IMM_IMM:
             return format("  %s\t%d\t%d", this.op, this.lhs, this.rhs);
+        case IRInfo.LABEL_ADDRESS:
+            return format("  %s\tr%d\t%s", this.op, this.lhs, this.name);
         default:
             assert(0);
         }
@@ -158,6 +164,7 @@ struct Function
     string name;
     IR[] irs;
     size_t stacksize;
+    Node[] strings;
 }
 
 Function[] genIR(Node[] nodes)
@@ -166,7 +173,7 @@ Function[] genIR(Node[] nodes)
     foreach (node; nodes)
     {
         assert(node.op == NodeType.FUNCTION);
-        size_t regno = 1; // 0番はベースレジスタとして予約
+        size_t regno = 1; // 0番はベー������レジスタとして予約
         size_t label;
         IR[] code;
 
@@ -192,6 +199,7 @@ Function[] genIR(Node[] nodes)
         fn.name = node.name;
         fn.irs = code;
         fn.stacksize = node.stacksize;
+        fn.strings = node.strings;
         result ~= fn;
     }
     return result;
@@ -345,7 +353,8 @@ long genExpression(ref IR[] ins, ref size_t regno, ref size_t label, Node* node)
 
         ins ~= IR(IRType.LABEL, l_ret);
         return r1;
-    case VARIABLE_REFERENCE:
+    case LOCAL_VARIABLE:
+    case GLOBAL_VARIABLE:
         long r = genLval(ins, regno, label, node);
         switch (node.type.type)
         {
@@ -364,7 +373,18 @@ long genExpression(ref IR[] ins, ref size_t regno, ref size_t label, Node* node)
         return genLval(ins, regno, label, node.expr);
     case DEREFERENCE:
         long r = genExpression(ins, regno, label, node.expr);
-        ins ~= IR(IRType.LOAD64, r, r);
+        switch (node.type.type)
+        {
+        case TypeName.CHAR:
+            ins ~= IR(IRType.LOAD8, r, r);
+            break;
+        case TypeName.POINTER:
+            ins ~= IR(IRType.LOAD64, r, r);
+            break;
+        default:
+            ins ~= IR(IRType.LOAD32, r, r);
+            break;
+        }
         return r;
     case ASSIGN:
         long rhs = genExpression(ins, regno, label, node.rhs);
@@ -420,7 +440,7 @@ long genExpression(ref IR[] ins, ref size_t regno, ref size_t label, Node* node)
 
 long genLval(ref IR[] ins, ref size_t regno, ref size_t label, Node* node)
 {
-    if (node.op == NodeType.VARIABLE_REFERENCE)
+    if (node.op == NodeType.LOCAL_VARIABLE)
     {
         long r = regno;
         regno++;
@@ -431,6 +451,17 @@ long genLval(ref IR[] ins, ref size_t regno, ref size_t label, Node* node)
     if (node.op == NodeType.DEREFERENCE)
     {
         return genExpression(ins, regno, label, node.expr);
+    }
+    if (node.op == NodeType.GLOBAL_VARIABLE)
+    {
+        IR ir;
+        ir.op = IRType.LABEL_ADDRESS;
+        long r = regno;
+        regno++;
+        ir.lhs = r;
+        ir.name = node.name;
+        ins ~= ir;
+        return r;
     }
     assert(0);
 }

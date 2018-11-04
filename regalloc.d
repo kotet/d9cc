@@ -46,6 +46,7 @@ void visit(ref IR[] ins)
         case IRInfo.REG:
         case IRInfo.REG_LABEL:
         case IRInfo.REG_IMM:
+        case IRInfo.LABEL_ADDRESS:
             ir.lhs = alloc(reg_map, used, ir.lhs);
             break;
         case IRInfo.REG_REG:

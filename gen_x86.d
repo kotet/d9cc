@@ -6,6 +6,7 @@ import std.format : format;
 
 import gen_ir;
 import regalloc;
+import parser;
 
 public:
 
@@ -25,6 +26,14 @@ static immutable string[] regs_arg64 = ["rdi", "rsi", "rdx", "rcx", "r8", "r9"];
 
 void gen(Function fn, ref size_t labelcnt)
 {
+    writefln(".data");
+    foreach (str; fn.strings)
+    {
+        assert(str.op == NodeType.STRING);
+        writefln("%s:", str.name);
+        writefln("  .asciz \"%s\"", str.str);
+    }
+    writefln(".text");
     writefln(".global %s", fn.name);
     writefln("%s:", fn.name);
 
@@ -94,6 +103,7 @@ void gen(Function fn, ref size_t labelcnt)
         case IRType.LOAD8:
             writefln("  mov %s, [%s]",
                     registers_lower_8bits[ir.lhs], registers[ir.rhs]);
+            writefln("  movzb %s, %s", registers[ir.lhs], registers_lower_8bits[ir.lhs]);
             break;
         case IRType.STORE8:
             writefln("  mov [%s], %s", registers[ir.lhs],
@@ -128,6 +138,10 @@ void gen(Function fn, ref size_t labelcnt)
             break;
         case IRType.LABEL:
             writefln(".L%d:", ir.lhs);
+            break;
+        case IRType.LABEL_ADDRESS:
+            // 実効アドレスを計算する
+            writefln("  lea %s, %s", registers[ir.lhs], ir.name);
             break;
         case IRType.UNLESS:
             // 右辺(この場合0)との差が0ならゼロフラグが1になる

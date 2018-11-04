@@ -32,6 +32,7 @@ class ExitException : Exception
 
 void error(A...)(string msg, A args)
 {
+    stderr.writefln(msg, args);
     throw new ExitException(-1);
 }
 
