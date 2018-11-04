@@ -495,7 +495,7 @@ Node* postfix(Token[] tokens, ref size_t i)
     Node* lhs = primary(tokens, i);
     while (consume(TokenType.LEFT_BRACKET, tokens, i))
     {
-        lhs = newExpr(NodeType.DEREFERENCE, newBinOp(NodeType.ADD, lhs, primary(tokens, i)));
+        lhs = newExpr(NodeType.DEREFERENCE, newBinOp(NodeType.ADD, lhs, assign(tokens, i)));
         expect(']', tokens, i);
     }
     return lhs;
