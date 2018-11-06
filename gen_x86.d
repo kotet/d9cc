@@ -3,6 +3,7 @@ module gen_x86;
 
 import std.stdio : writeln, writefln, stderr;
 import std.format : format;
+import core.stdc.ctype : isgraph;
 
 import gen_ir;
 import regalloc;
@@ -27,11 +28,10 @@ static immutable string[] regs_arg64 = ["rdi", "rsi", "rdx", "rcx", "r8", "r9"];
 void gen(Function fn, ref size_t labelcnt)
 {
     writefln(".data");
-    foreach (str; fn.strings)
+    foreach (var; fn.globals)
     {
-        assert(str.op == NodeType.STRING);
-        writefln("%s:", str.name);
-        writefln("  .asciz \"%s\"", str.str);
+        writefln("%s:", var.name);
+        writefln("  .ascii \"%s\"", escape(var.data));
     }
     writefln(".text");
     writefln(".global %s", fn.name);
@@ -202,4 +202,27 @@ void gen(Function fn, ref size_t labelcnt)
 string genLabel(size_t labelcnt)
 {
     return format(".L%d", labelcnt);
+}
+
+string escape(string s)
+{
+    string result;
+    foreach (c; s)
+    {
+        if (c == '\\')
+        {
+            result ~= "\\\\";
+        }
+        else if (isgraph(c) || c == ' ')
+        {
+            result ~= c;
+        }
+        else
+        {
+            // 3桁8進数
+            result ~= format("\\%03o", c);
+        }
+    }
+    result ~= "\\000";
+    return result;
 }

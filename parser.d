@@ -5,6 +5,7 @@ import std.stdio : stderr;
 
 import token;
 import util;
+import sema;
 
 // BNFじみた表記になっているが特にBNFとしては意味のないメモ書き
 // <func>           ::= <compound_stmt>
@@ -96,7 +97,7 @@ struct Node
 
     // FUNCTIONノード用
     size_t stacksize;
-    Node[] strings;
+    Variable[] globals;
 
     // 変数関連ノード用
     size_t offset;

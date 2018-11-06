@@ -164,7 +164,7 @@ struct Function
     string name;
     IR[] irs;
     size_t stacksize;
-    Node[] strings;
+    Variable[] globals;
 }
 
 Function[] genIR(Node[] nodes)
@@ -199,7 +199,7 @@ Function[] genIR(Node[] nodes)
         fn.name = node.name;
         fn.irs = code;
         fn.stacksize = node.stacksize;
-        fn.strings = node.strings;
+        fn.globals = node.globals;
         result ~= fn;
     }
     return result;

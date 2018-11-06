@@ -9,6 +9,16 @@ import util;
 
 public:
 
+struct Variable
+{
+    Type* type;
+    bool is_local;
+
+    size_t offset; // ローカル変数
+    string name; // グローバル変数
+    string data; // 文字列
+}
+
 long size_of(Type t)
 {
     with (TypeName) switch (t.type)
@@ -32,28 +42,19 @@ void semantics(ref Node[] nodes)
     {
         Variable[string] vars;
         size_t stacksize;
-        Node[] strings; // 文字列ノードが入る。.dataセクションは関数ごとに生成する
+        Variable[] globals; // 文字列ノードが入る。.dataセクションは関数ごとに生成する
 
-        walk(&node, true, str_label, strings, vars, stacksize);
+        walk(&node, true, str_label, globals, vars, stacksize);
         node.stacksize = stacksize;
-        node.strings = strings;
+        node.globals = globals;
     }
 }
 
 private:
 
-struct Variable
-{
-    Type* type;
-    bool is_local;
-
-    size_t offset; // ローカル変数
-    string name; // グローバル変数
-}
-
 // decay == trueならIDENTIFIERノードをADDRESSノードに書き換える。
 // decay == falseになるのは arr = {1,2,3}みたいなときだと思う
-Node* walk(Node* node, bool decay, ref size_t str_label, ref Node[] strings,
+Node* walk(Node* node, bool decay, ref size_t str_label, ref Variable[] globals,
         ref Variable[string] vars, ref size_t stacksize)
 {
     with (NodeType) switch (node.op)
@@ -97,27 +98,27 @@ Node* walk(Node* node, bool decay, ref size_t str_label, ref Node[] strings,
 
         if (node.initalize)
         {
-            node.initalize = walk(node.initalize, true, str_label, strings, vars, stacksize);
+            node.initalize = walk(node.initalize, true, str_label, globals, vars, stacksize);
         }
         return node;
     case IF:
-        node.cond = walk(node.cond, true, str_label, strings, vars, stacksize);
-        node.then = walk(node.then, true, str_label, strings, vars, stacksize);
+        node.cond = walk(node.cond, true, str_label, globals, vars, stacksize);
+        node.then = walk(node.then, true, str_label, globals, vars, stacksize);
         if (node.els)
         {
-            node.els = walk(node.els, true, str_label, strings, vars, stacksize);
+            node.els = walk(node.els, true, str_label, globals, vars, stacksize);
         }
         return node;
     case FOR:
-        node.initalize = walk(node.initalize, true, str_label, strings, vars, stacksize);
-        node.cond = walk(node.cond, true, str_label, strings, vars, stacksize);
-        node.inc = walk(node.inc, true, str_label, strings, vars, stacksize);
-        node.bdy = walk(node.bdy, true, str_label, strings, vars, stacksize);
+        node.initalize = walk(node.initalize, true, str_label, globals, vars, stacksize);
+        node.cond = walk(node.cond, true, str_label, globals, vars, stacksize);
+        node.inc = walk(node.inc, true, str_label, globals, vars, stacksize);
+        node.bdy = walk(node.bdy, true, str_label, globals, vars, stacksize);
         return node;
     case ADD:
     case SUB:
-        node.lhs = walk(node.lhs, true, str_label, strings, vars, stacksize);
-        node.rhs = walk(node.rhs, true, str_label, strings, vars, stacksize);
+        node.lhs = walk(node.lhs, true, str_label, globals, vars, stacksize);
+        node.rhs = walk(node.rhs, true, str_label, globals, vars, stacksize);
         if (node.rhs.type.type == TypeName.POINTER)
         {
             // a - bがb - aになっちゃうけどいいんだろうか……
@@ -134,21 +135,21 @@ Node* walk(Node* node, bool decay, ref size_t str_label, ref Node[] strings,
     case LESS_THAN:
     case LOGICAL_OR:
     case LOGICAL_AND:
-        node.lhs = walk(node.lhs, true, str_label, strings, vars, stacksize);
-        node.rhs = walk(node.rhs, true, str_label, strings, vars, stacksize);
+        node.lhs = walk(node.lhs, true, str_label, globals, vars, stacksize);
+        node.rhs = walk(node.rhs, true, str_label, globals, vars, stacksize);
         node.type = node.lhs.type;
         return node;
     case ASSIGN:
-        node.lhs = walk(node.lhs, false, str_label, strings, vars, stacksize);
+        node.lhs = walk(node.lhs, false, str_label, globals, vars, stacksize);
         if (node.lhs.op != NodeType.DEREFERENCE && node.lhs.op != NodeType.LOCAL_VARIABLE)
         {
             error("Not an lvalue: %s (%s)", node.op, node.name);
         }
-        node.rhs = walk(node.rhs, true, str_label, strings, vars, stacksize);
+        node.rhs = walk(node.rhs, true, str_label, globals, vars, stacksize);
         node.type = node.lhs.type;
         return node;
     case DEREFERENCE:
-        node.expr = walk(node.expr, true, str_label, strings, vars, stacksize);
+        node.expr = walk(node.expr, true, str_label, globals, vars, stacksize);
         if (node.expr.type.type != TypeName.POINTER)
         {
             error("Operand must be a pointer");
@@ -156,33 +157,33 @@ Node* walk(Node* node, bool decay, ref size_t str_label, ref Node[] strings,
         node.type = node.expr.type.pointer_of;
         return node;
     case RETURN:
-        node.expr = walk(node.expr, true, str_label, strings, vars, stacksize);
+        node.expr = walk(node.expr, true, str_label, globals, vars, stacksize);
         node.type = new Type(TypeName.INT);
         return node;
     case CALL:
         foreach (i, ref arg; node.args)
-            node.args[i] = *walk(&arg, true, str_label, strings, vars, stacksize);
+            node.args[i] = *walk(&arg, true, str_label, globals, vars, stacksize);
         node.type = new Type(TypeName.INT);
         return node;
     case FUNCTION:
         foreach (i, ref arg; node.args)
-            node.args[i] = *walk(&arg, true, str_label, strings, vars, stacksize);
-        walk(node.bdy, true, str_label, strings, vars, stacksize);
+            node.args[i] = *walk(&arg, true, str_label, globals, vars, stacksize);
+        walk(node.bdy, true, str_label, globals, vars, stacksize);
         return node;
     case COMPOUND_STATEMENT:
         foreach (i, ref stmt; node.statements)
-            node.statements[i] = *walk(&stmt, true, str_label, strings, vars, stacksize);
+            node.statements[i] = *walk(&stmt, true, str_label, globals, vars, stacksize);
         return node;
     case EXPRESSION_STATEMENT:
-        node.expr = walk(node.expr, true, str_label, strings, vars, stacksize);
+        node.expr = walk(node.expr, true, str_label, globals, vars, stacksize);
         return node;
     case ADDRESS:
-        node.expr = walk(node.expr, true, str_label, strings, vars, stacksize);
+        node.expr = walk(node.expr, true, str_label, globals, vars, stacksize);
         node.type = node.expr.type.pointer_of;
         return node;
     case SIZEOF:
         return () {
-            Node* expr = walk(node.expr, false, str_label, strings, vars, stacksize);
+            Node* expr = walk(node.expr, false, str_label, globals, vars, stacksize);
             Node* n = new Node();
             n.op = NodeType.NUM;
             n.type = new Type(TypeName.INT);
@@ -190,15 +191,20 @@ Node* walk(Node* node, bool decay, ref size_t str_label, ref Node[] strings,
             return n;
         }();
     case STRING:
+        Variable var;
         string name = format(".L.str%d", str_label);
         str_label++;
-        node.name = name;
-        strings ~= *node;
+        var.type = node.type;
+        var.is_local = false;
+        var.name = name;
+        var.data = node.str;
+        globals ~= var;
+
         Node* ret = new Node();
         ret.op = NodeType.GLOBAL_VARIABLE;
         ret.type = node.type;
         ret.name = name;
-        return walk(ret, decay, str_label, strings, vars, stacksize);
+        return walk(ret, decay, str_label, globals, vars, stacksize);
         break;
     case GLOBAL_VARIABLE:
         if (decay && node.type.type == TypeName.ARRAY)
