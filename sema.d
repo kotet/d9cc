@@ -81,6 +81,26 @@ Variable* find(Enviroment* env, string name)
     }
 }
 
+Node* maybeDecay(Node* base, bool decay)
+{
+    if (decay && base.type.type == TypeName.ARRAY)
+    {
+        return () {
+            Node* n = new Node();
+            n.op = NodeType.ADDRESS;
+            Type* t = new Type(TypeName.POINTER);
+            t.pointer_of = base.type.array_of;
+            n.type = t;
+            n.expr = base;
+            return n;
+        }();
+    }
+    else
+    {
+        return base;
+    }
+}
+
 // decay == trueならIDENTIFIERノードをADDRESSノードに書き換える。
 // decay == falseになるのは arr = {1,2,3}みたいなときだと思う
 Node* walk(Node* node, bool decay, ref size_t str_label, ref Variable[] globals,
@@ -96,26 +116,11 @@ Node* walk(Node* node, bool decay, ref size_t str_label, ref Variable[] globals,
         {
             error("Undefined variable: %s", node.name);
         }
-        node.op = LOCAL_VARIABLE;
-        node.offset = var.offset;
-
-        if (decay && var.type.type == TypeName.ARRAY)
-        {
-            return () {
-                Node* n = new Node();
-                n.op = NodeType.ADDRESS;
-                Type* t = new Type(TypeName.POINTER);
-                t.pointer_of = var.type.array_of;
-                n.type = t;
-                n.expr = node;
-                return n;
-            }();
-        }
-        else
-        {
-            node.type = var.type;
-            return node;
-        }
+        Node* ret = new Node();
+        ret.op = LOCAL_VARIABLE;
+        ret.offset = var.offset;
+        ret.type = var.type;
+        return maybeDecay(ret, decay);
     case VARIABLE_DEFINITION:
         stacksize += size_of(*node.type);
         node.offset = stacksize;
@@ -235,26 +240,9 @@ Node* walk(Node* node, bool decay, ref size_t str_label, ref Variable[] globals,
         ret.op = NodeType.GLOBAL_VARIABLE;
         ret.type = node.type;
         ret.name = name;
-        return walk(ret, decay, str_label, globals, env, stacksize);
-        break;
-    case GLOBAL_VARIABLE:
-        if (decay && node.type.type == TypeName.ARRAY)
-        {
-            return () {
-                Node* n = new Node();
-                n.op = NodeType.ADDRESS;
-                Type* t = new Type(TypeName.POINTER);
-                t.pointer_of = node.type.array_of;
-                n.type = t;
-                n.expr = node;
-                return n;
-            }();
-        }
-        else
-        {
-            return node;
-        }
-        break;
+        return maybeDecay(ret,decay);
+    // case GLOBAL_VARIABLE:
+    //     return maybeDecay(node,decay);
     default:
         error("Unknown node type: %s", node.op);
         assert(0);
