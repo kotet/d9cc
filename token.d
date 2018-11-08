@@ -79,18 +79,9 @@ Token[] tokenize(string s)
             Token t;
             t.type = TokenType.STRING;
             i++;
-            size_t len;
-            while (i + len < s.length && s[i + len] != '"')
-            {
-                len++;
-            }
-            if (s.length <= i + len)
-            {
-                error("Premature end of input");
-            }
-            t.str = s[i .. i + len];
-            t.input = s[i - 1 .. i + len + 1];
-            i += len + 1;
+            string str = readString(s, i);
+            t.str = str;
+            t.input = str;
             result ~= t;
             continue;
         }
@@ -160,5 +151,63 @@ Token[] tokenize(string s)
 
     result ~= () { Token t; t.type = TokenType.EOF; return t; }();
 
+    return result;
+}
+
+private:
+
+string readString(string s, ref size_t i)
+{
+    string result;
+    while (i < s.length && s[i] != '"')
+    {
+        if (s[i] != '\\')
+        {
+            result ~= s[i];
+            i++;
+            continue;
+        }
+
+        i++;
+        if (s.length <= i)
+        {
+            error("Premature end of input");
+        }
+
+        // エスケープ
+        switch (s[i])
+        {
+        case 'a': // ベル文字
+            result ~= '\a';
+            break;
+        case 'b': // バックスペース
+            result ~= '\b';
+            break;
+        case 'f': // 改ページ
+            result ~= '\f';
+            break;
+        case 'n':
+            result ~= '\n';
+            break;
+        case 'r':
+            result ~= '\r';
+            break;
+        case 't':
+            result ~= '\t';
+            break;
+        case 'v': // 垂直タブ
+            result ~= '\v';
+            break;
+        default:
+            result ~= s[i];
+            break;
+        }
+        i++;
+    }
+    if (s.length <= i)
+    {
+        error("Premature end of input");
+    }
+    i++;
     return result;
 }
