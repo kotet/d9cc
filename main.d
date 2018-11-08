@@ -43,7 +43,7 @@ int main(string[] args)
 
         Node[] nodes = parse(tokens);
 
-        semantics(nodes);
+        Variable[] globals = semantics(nodes);
 
         Function[] fns = genIR(nodes);
 
@@ -69,7 +69,7 @@ int main(string[] args)
             }
         }
 
-        generate_x86(fns);
+        generate_x86(globals, fns);
         return 0;
     }
     catch (ExitException e)

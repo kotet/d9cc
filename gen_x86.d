@@ -8,12 +8,20 @@ import core.stdc.ctype : isgraph;
 import gen_ir;
 import regalloc;
 import parser;
+import sema;
 
 public:
 
-void generate_x86(Function[] fns)
+void generate_x86(Variable[] globals, Function[] fns)
 {
     writefln(".intel_syntax noprefix"); // intel記法を使う
+    writefln(".data");
+    foreach (var; globals)
+    {
+        writefln("%s:", var.name);
+        writefln("  .ascii \"%s\"", escape(cast(string) var.data));
+    }
+    writefln(".text");
     size_t labelcnt;
     foreach (fn; fns)
         gen(fn, labelcnt);
@@ -27,13 +35,6 @@ static immutable string[] regs_arg64 = ["rdi", "rsi", "rdx", "rcx", "r8", "r9"];
 
 void gen(Function fn, ref size_t labelcnt)
 {
-    writefln(".data");
-    foreach (var; fn.globals)
-    {
-        writefln("%s:", var.name);
-        writefln("  .ascii \"%s\"", escape(var.data));
-    }
-    writefln(".text");
     writefln(".global %s", fn.name);
     writefln("%s:", fn.name);
 
@@ -223,6 +224,5 @@ string escape(string s)
             result ~= format("\\%03o", c);
         }
     }
-    result ~= "\\000";
     return result;
 }

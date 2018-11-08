@@ -5,6 +5,24 @@ import std.stdio : stderr;
 
 public:
 
+enum TypeName
+{
+    INT,
+    POINTER,
+    ARRAY,
+    CHAR,
+}
+
+struct Type
+{
+    TypeName type;
+    Type* pointer_of;
+
+    // 配列
+    Type* array_of;
+    size_t array_length;
+}
+
 /// strtolの代わり
 int nextInt(string s, ref size_t i)
 {
@@ -51,4 +69,20 @@ mixin template debugEnum(E)
             {
             pragma(msg, "\t", cast(int) e, "\t= ", cast(int) e);
         }
+}
+
+long size_of(Type t)
+{
+    with (TypeName) switch (t.type)
+    {
+    case CHAR:
+        return 1;
+    case INT:
+        return 4;
+    case ARRAY:
+        return size_of(*t.array_of) * t.array_length;
+    default:
+        assert(t.type == TypeName.POINTER);
+        return 8;
+    }
 }

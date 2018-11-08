@@ -50,24 +50,6 @@ enum NodeType : int
     SIZEOF,
 }
 
-enum TypeName
-{
-    INT,
-    POINTER,
-    ARRAY,
-    CHAR,
-}
-
-struct Type
-{
-    TypeName type;
-    Type* pointer_of;
-
-    // 配列
-    Type* array_of;
-    size_t array_length;
-}
-
 struct Node
 {
     NodeType op;
@@ -77,10 +59,11 @@ struct Node
     Node* rhs = null;
 
     int val; // 値リテラル (op == NUM)
-    string str; // 文字列リテラル (op == STRING)
-    string name; // 変数名または関数名 (op == IDENTIFIER, FUNCTION)
     Node* expr; // 式 (op == EXPRESSION_STATEMENT, RETURN)
     Node[] statements; // 文 (op == COMPOUND_STATEMENT)
+
+    string name; // 変数名または関数名 (op == IDENTIFIER, FUNCTION)
+    ubyte[] data;
 
     // typeの値によって役割が変わる
     // function (<args>){<body>} (op == FUNCTION)
@@ -111,7 +94,7 @@ Node[] parse(Token[] tokens)
     Node[] functions;
     while (tokens[i].type != TokenType.EOF)
     {
-        functions ~= *func(tokens, i);
+        functions ~= *topLevel(tokens, i);
     }
     return functions;
 }
@@ -168,37 +151,51 @@ Node* newExpr(NodeType op, Node* expr)
     return node;
 }
 
-// 関数
-Node* func(Token[] tokens, ref size_t i)
+// 関数とグローバル変数
+Node* topLevel(Token[] tokens, ref size_t i)
 {
-    Node* n = new Node();
-    n.op = NodeType.FUNCTION;
-    // 関数の型。intしかない上に今のところは特に何もしない
-    if (tokens[i].type != TokenType.INT)
+    Type* ty = type(tokens, i);
+
+    if (!ty)
     {
-        error("Function return type expected, but got %s", tokens[i].input);
+        error("Typename expected, but got %s", tokens[i].input);
     }
-    i++;
     if (tokens[i].type != TokenType.IDENTIFIER)
     {
-        error("Function name expected, but got %s", tokens[i].input);
+        error("Function or Variable name expected, but got %s", tokens[i].input);
     }
 
-    auto t = tokens[i];
-    n.name = t.name;
+    string name = tokens[i].name;
     i++;
-    expect('(', tokens, i);
-    if (!consume(TokenType.RIGHT_PARENTHESE, tokens, i))
+    // 関数
+    if (consume(TokenType.LEFT_PARENTHESE, tokens, i))
     {
-        n.args ~= *param(tokens, i);
-        while (consume(TokenType.COMMA, tokens, i))
+        Node* n = new Node();
+        n.op = NodeType.FUNCTION;
+        n.type = ty;
+        auto t = tokens[i];
+        n.name = name;
+        if (!consume(TokenType.RIGHT_PARENTHESE, tokens, i))
         {
             n.args ~= *param(tokens, i);
+            while (consume(TokenType.COMMA, tokens, i))
+            {
+                n.args ~= *param(tokens, i);
+            }
+            expect(')', tokens, i);
         }
-        expect(')', tokens, i);
+        expect('{', tokens, i);
+        n.bdy = compound_stmt(tokens, i);
+        return n;
     }
-    expect('{', tokens, i);
-    n.bdy = compound_stmt(tokens, i);
+
+    // グローバル変数
+    Node* n = new Node();
+    n.op = NodeType.VARIABLE_DEFINITION;
+    n.type = readArray(ty, tokens, i);
+    n.name = name;
+    n.data = new ubyte[](size_of(*n.type));
+    expect(';', tokens, i);
     return n;
 }
 
@@ -559,7 +556,7 @@ Node* primary(Token[] tokens, ref size_t i)
             t.array_length = tokens[i].str.length;
             return t;
         }();
-        n.str = tokens[i].str;
+        n.data = cast(ubyte[]) (tokens[i].str ~ '\0');
         i++;
         return n;
     }

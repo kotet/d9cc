@@ -16,38 +16,33 @@ struct Variable
 
     size_t offset; // ローカル変数
     string name; // グローバル変数
-    string data; // 文字列
+    ubyte[] data; // 文字列
 }
 
-long size_of(Type t)
-{
-    with (TypeName) switch (t.type)
-    {
-    case CHAR:
-        return 1;
-    case INT:
-        return 4;
-    case ARRAY:
-        return size_of(*t.array_of) * t.array_length;
-    default:
-        assert(t.type == TypeName.POINTER);
-        return 8;
-    }
-}
-
-void semantics(ref Node[] nodes)
+Variable[] semantics(ref Node[] nodes)
 {
     size_t str_label; // アセンブリ内での通し番号
+    Variable[] globals;
+    Enviroment* topenv = new Enviroment();
+
     foreach (ref node; nodes)
     {
-        Enviroment* env = new Enviroment();
-        size_t stacksize;
-        Variable[] globals; // 文字列ノードが入る。.dataセクションは関数ごとに生成する
 
-        walk(&node, true, str_label, globals, env, stacksize);
+        if (node.op == NodeType.VARIABLE_DEFINITION)
+        {
+            Variable var = newGlobal(node.type, node.data, str_label);
+            globals ~= var;
+            topenv.vars[node.name] = var;
+            continue;
+        }
+
+        assert(node.op == NodeType.FUNCTION);
+        size_t stacksize;
+
+        walk(&node, true, str_label, globals, topenv, stacksize);
         node.stacksize = stacksize;
-        node.globals = globals;
     }
+    return globals;
 }
 
 private:
@@ -63,6 +58,27 @@ Enviroment* newEnv(Enviroment* env)
     Enviroment* e = new Enviroment();
     e.next = env;
     return e;
+}
+
+Variable newGlobal(Type* type, ubyte[] data, ref size_t str_label)
+{
+    Variable var;
+    string name = format(".L.str%d", str_label);
+    str_label++;
+    var.type = type;
+    var.is_local = false;
+    var.name = name;
+    var.data = data;
+    return var;
+}
+
+bool checkLval(Node* node)
+{
+    if (node.op == NodeType.LOCAL_VARIABLE
+            || node.op == NodeType.GLOBAL_VARIABLE || node.op == NodeType.DEREFERENCE)
+        return true;
+    error("Not an lvalue: %s (%s)", node.op, node.name);
+    assert(0);
 }
 
 Variable* find(Enviroment* env, string name)
@@ -116,11 +132,23 @@ Node* walk(Node* node, bool decay, ref size_t str_label, ref Variable[] globals,
         {
             error("Undefined variable: %s", node.name);
         }
-        Node* ret = new Node();
-        ret.op = LOCAL_VARIABLE;
-        ret.offset = var.offset;
-        ret.type = var.type;
-        return maybeDecay(ret, decay);
+
+        if (var.is_local)
+        {
+            Node* ret = new Node();
+            ret.op = LOCAL_VARIABLE;
+            ret.offset = var.offset;
+            ret.type = var.type;
+            return maybeDecay(ret, decay);
+        }
+        else
+        {
+            Node* ret = new Node();
+            ret.op = GLOBAL_VARIABLE;
+            ret.name = var.name;
+            ret.type = var.type;
+            return maybeDecay(ret, decay);
+        }
     case VARIABLE_DEFINITION:
         stacksize += size_of(*node.type);
         node.offset = stacksize;
@@ -176,10 +204,7 @@ Node* walk(Node* node, bool decay, ref size_t str_label, ref Variable[] globals,
         return node;
     case ASSIGN:
         node.lhs = walk(node.lhs, false, str_label, globals, env, stacksize);
-        if (node.lhs.op != NodeType.DEREFERENCE && node.lhs.op != NodeType.LOCAL_VARIABLE)
-        {
-            error("Not an lvalue: %s (%s)", node.op, node.name);
-        }
+        checkLval(node.lhs);
         node.rhs = walk(node.rhs, true, str_label, globals, env, stacksize);
         node.type = node.lhs.type;
         return node;
@@ -215,6 +240,7 @@ Node* walk(Node* node, bool decay, ref size_t str_label, ref Variable[] globals,
         return node;
     case ADDRESS:
         node.expr = walk(node.expr, true, str_label, globals, env, stacksize);
+        checkLval(node.expr);
         node.type = node.expr.type.pointer_of;
         return node;
     case SIZEOF:
@@ -227,22 +253,13 @@ Node* walk(Node* node, bool decay, ref size_t str_label, ref Variable[] globals,
             return n;
         }();
     case STRING:
-        Variable var;
-        string name = format(".L.str%d", str_label);
-        str_label++;
-        var.type = node.type;
-        var.is_local = false;
-        var.name = name;
-        var.data = node.str;
+        Variable var = newGlobal(node.type, node.data, str_label);
         globals ~= var;
-
         Node* ret = new Node();
         ret.op = NodeType.GLOBAL_VARIABLE;
         ret.type = node.type;
-        ret.name = name;
-        return maybeDecay(ret,decay);
-    // case GLOBAL_VARIABLE:
-    //     return maybeDecay(node,decay);
+        ret.name = var.name;
+        return maybeDecay(ret, decay);
     default:
         error("Unknown node type: %s", node.op);
         assert(0);

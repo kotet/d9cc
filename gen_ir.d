@@ -172,6 +172,11 @@ Function[] genIR(Node[] nodes)
     Function[] result;
     foreach (node; nodes)
     {
+        if (node.op == NodeType.VARIABLE_DEFINITION)
+        {
+            continue;
+        }
+
         assert(node.op == NodeType.FUNCTION);
         size_t regno = 1; // 0番はベー������レジスタとして予約
         size_t label;
