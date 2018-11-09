@@ -50,6 +50,8 @@ enum IRType : int
     UNLESS,
     JMP,
     CALL,
+    EQUAL,
+    NOT_EQUAL,
 }
 
 enum IRInfo
@@ -93,6 +95,8 @@ struct IR
         case IRType.STORE32:
         case IRType.STORE64:
         case IRType.LESS_THAN:
+        case IRType.EQUAL:
+        case IRType.NOT_EQUAL:
             return IRInfo.REG_REG;
         case IRType.IMM:
         case IRType.ADD_IMM:
@@ -436,6 +440,10 @@ long genExpression(ref IR[] ins, ref size_t regno, ref size_t label, Node* node)
         return genBinaryOp(ins, regno, label, IRType.DIV, node.lhs, node.rhs);
     case LESS_THAN:
         return genBinaryOp(ins, regno, label, IRType.LESS_THAN, node.lhs, node.rhs);
+    case EQUAL:
+        return genBinaryOp(ins, regno, label, IRType.EQUAL, node.lhs, node.rhs);
+    case NOT_EQUAL:
+        return genBinaryOp(ins, regno, label, IRType.NOT_EQUAL, node.lhs, node.rhs);
     default:
         // IDENTIFIERは前プロセスで別のノードに変換されている
         error("Unknown AST Type: %s", node.op);

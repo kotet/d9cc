@@ -43,6 +43,8 @@ enum TokenType : int
     SIZEOF,
     CHAR,
     STRING,
+    EQUAL,
+    NOT_EQUAL,
 }
 
 struct Token
@@ -62,6 +64,7 @@ Token[] tokenize(string s)
         "int" : TokenType.INT, "return" : TokenType.RETURN, "if" : TokenType.IF,
         "for" : TokenType.FOR, "else" : TokenType.ELSE, "&&" : TokenType.LOGICAL_AND,
         "||" : TokenType.LOGICAL_OR, "sizeof" : TokenType.SIZEOF, "char" : TokenType.CHAR,
+        "==" : TokenType.EQUAL, "!=" : TokenType.NOT_EQUAL,
     ];
 
     while_loop: while (i < s.length) // Dの文字列はNull終端ではない

@@ -182,15 +182,16 @@ void gen(Function fn, ref size_t labelcnt)
             writefln("  mov [rbp-%d], %s", ir.lhs, regs_arg64[ir.rhs]);
             break;
         case IRType.LESS_THAN:
-            // lhs - rhsが負数、つまりlhs < rhsのとき符号フラグが1になる
-            writefln("  cmp %s, %s", registers[ir.lhs], registers[ir.rhs]);
-            // setlは符号フラグが1のとき1をセットする。
-            // 結果は1バイトの値なのでレジスタも8ビットのものを使う
-            writefln("  setl %s", registers_lower_8bits[ir.lhs]);
-            // 上位ビットは変化しないので適切にゼロ拡張してやる必要がある。
-            // movzbは8ビットの値を64ビットにゼロ拡張して格納する。
-            // 結果的に、下のコードはlhsレジスタの上位ビットをただゼロ埋めする
-            writefln("  movzb %s, %s", registers[ir.lhs], registers_lower_8bits[ir.lhs]);
+            // lhs - rhsが負数になり符号フラグが立った場合1を格納
+            emitCmp(ir, "setl");
+            break;
+        case IRType.EQUAL:
+            // lhs - rhsの結果ゼロフラグが立った場合1を格納
+            emitCmp(ir, "sete");
+            break;
+        case IRType.NOT_EQUAL:
+            // lhs - rhsの結果ゼロフラグが立たなかったら1を格納
+            emitCmp(ir, "setne");
             break;
         case IRType.NOP:
             break;
@@ -225,4 +226,16 @@ string escape(string s)
         }
     }
     return result;
+}
+
+void emitCmp(IR ir, string insn)
+{
+    // 比較の結果さまざまなフラグが立ったり立たなかったりする
+    writefln("  cmp %s, %s", registers[ir.lhs], registers[ir.rhs]);
+    // 結果は1バイトの値なのでレジスタも8ビットのものを使う
+    writefln("  %s %s", insn, registers_lower_8bits[ir.lhs]);
+    // 上位ビットは変化しないので適切にゼロ拡張してやる必要がある。
+    // movzbは8ビットの値を64ビットにゼロ拡張して格納する。
+    // 結果的に、下のコードはlhsレジスタの上位ビットをただゼロ埋めする
+    writefln("  movzb %s, %s", registers[ir.lhs], registers_lower_8bits[ir.lhs]);
 }

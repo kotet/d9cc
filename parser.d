@@ -48,6 +48,8 @@ enum NodeType : int
     LOGICAL_OR,
     ADDRESS,
     SIZEOF,
+    EQUAL,
+    NOT_EQUAL,
 }
 
 struct Node
@@ -398,7 +400,7 @@ Node* logicalOr(Token[] tokens, ref size_t i)
 // and式
 Node* logicalAnd(Token[] tokens, ref size_t i)
 {
-    Node* lhs = rel(tokens, i);
+    Node* lhs = equality(tokens, i);
 
     while (true)
     {
@@ -408,7 +410,29 @@ Node* logicalAnd(Token[] tokens, ref size_t i)
             return lhs;
         }
         i++;
-        lhs = newBinOp(NodeType.LOGICAL_AND, lhs, rel(tokens, i));
+        lhs = newBinOp(NodeType.LOGICAL_AND, lhs, equality(tokens, i));
+    }
+}
+// 等値判定
+Node* equality(Token[] tokens, ref size_t i)
+{
+    Node* lhs = rel(tokens, i);
+    while (true)
+    {
+        TokenType op = tokens[i].type;
+        if (op == TokenType.EQUAL)
+        {
+            i++;
+            lhs = newBinOp(NodeType.EQUAL, lhs, rel(tokens, i));
+            continue;
+        }
+        if (op == TokenType.NOT_EQUAL)
+        {
+            i++;
+            lhs = newBinOp(NodeType.NOT_EQUAL, lhs, rel(tokens, i));
+            continue;
+        }
+        return lhs;
     }
 }
 // 大小比較

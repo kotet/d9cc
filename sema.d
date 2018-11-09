@@ -198,6 +198,8 @@ Node* walk(Node* node, bool decay, ref size_t str_label, ref Variable[] globals,
     case LESS_THAN:
     case LOGICAL_OR:
     case LOGICAL_AND:
+    case EQUAL:
+    case NOT_EQUAL:
         node.lhs = walk(node.lhs, true, str_label, globals, env, stacksize);
         node.rhs = walk(node.rhs, true, str_label, globals, env, stacksize);
         node.type = node.lhs.type;
