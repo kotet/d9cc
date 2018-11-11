@@ -105,12 +105,22 @@ private:
 
 void expect(char c, Token[] tokens, ref size_t i)
 {
-    if (tokens[i].type != (cast(TokenType) c))
+    expect(cast(TokenType) c, tokens, i);
+}
+
+void expect(TokenType t, Token[] tokens, ref size_t i)
+{
+    if (tokens[i].type != t)
     {
-        error("%s (%s) expected, but got %s (%s)", c, cast(TokenType) c,
+        error("%s (%s) expected, but got %s (%s)", cast(char) t, t,
                 tokens[i].input, tokens[i].type);
     }
     i++;
+}
+
+bool consume(char c, Token[] tokens, ref size_t i)
+{
+    return consume(cast(TokenType) c, tokens, i);
 }
 
 bool consume(TokenType type, Token[] tokens, ref size_t i)
@@ -170,17 +180,17 @@ Node* topLevel(Token[] tokens, ref size_t i)
     string name = tokens[i].name;
     i++;
     // 関数
-    if (consume(TokenType.LEFT_PARENTHESE, tokens, i))
+    if (consume('(', tokens, i))
     {
         Node* n = new Node();
         n.op = NodeType.FUNCTION;
         n.type = ty;
         auto t = tokens[i];
         n.name = name;
-        if (!consume(TokenType.RIGHT_PARENTHESE, tokens, i))
+        if (!consume(')', tokens, i))
         {
             n.args ~= *param(tokens, i);
-            while (consume(TokenType.COMMA, tokens, i))
+            while (consume(',', tokens, i))
             {
                 n.args ~= *param(tokens, i);
             }
@@ -206,7 +216,7 @@ Node* compound_stmt(Token[] tokens, ref size_t i)
 {
     Node* n = new Node();
     n.op = NodeType.COMPOUND_STATEMENT;
-    while (!consume(TokenType.RIGHT_BRACE, tokens, i))
+    while (!consume('}', tokens, i))
     {
         n.statements ~= *stmt(tokens, i);
     }
@@ -256,7 +266,7 @@ Node* declaration(Token[] tokens, ref size_t i)
     node.type = readArray(node.type, tokens, i);
 
     // 初期化
-    if (consume(TokenType.ASSIGN, tokens, i))
+    if (consume('=', tokens, i))
     {
         node.initalize = assign(tokens, i);
     }
@@ -272,7 +282,7 @@ Type* type(Token[] tokens, ref size_t i)
         error("Type name expected, but got %s", tokens[i].input);
     }
     i++;
-    while (consume(TokenType.ASTERISK, tokens, i))
+    while (consume('*', tokens, i))
     {
         ty = () {
             Type* t = new Type();
@@ -287,7 +297,7 @@ Type* type(Token[] tokens, ref size_t i)
 Type* readArray(Type* type, Token[] tokens, ref size_t i)
 {
     Node[] array_size;
-    while (consume(TokenType.LEFT_BRACKET, tokens, i))
+    while (consume('[', tokens, i))
     {
         Node* length = primary(tokens, i);
         if (length.op != NodeType.NUM)
@@ -354,7 +364,7 @@ Node* stmt(Token[] tokens, ref size_t i)
     case TokenType.LEFT_BRACE:
         i++;
         node.op = NodeType.COMPOUND_STATEMENT;
-        while (!consume(TokenType.RIGHT_BRACE, tokens, i))
+        while (!consume('}', tokens, i))
         {
             node.statements ~= *stmt(tokens, i);
         }
@@ -373,7 +383,7 @@ Node* assign(Token[] tokens, ref size_t i)
 {
     Node* lhs = logicalOr(tokens, i);
 
-    if (consume(TokenType.ASSIGN, tokens, i))
+    if (consume('=', tokens, i))
     {
         return newBinOp(NodeType.ASSIGN, lhs, logicalOr(tokens, i));
     }
@@ -493,12 +503,12 @@ Node* mul(Token[] tokens, ref size_t i)
 
 Node* unary(Token[] tokens, ref size_t i)
 {
-    if (consume(TokenType.ASTERISK, tokens, i))
+    if (consume('*', tokens, i))
     {
         return newExpr(NodeType.DEREFERENCE, mul(tokens, i));
     }
 
-    if (consume(TokenType.AMPERSAND, tokens, i))
+    if (consume('&', tokens, i))
     {
         return newExpr(NodeType.ADDRESS, mul(tokens, i));
     }
@@ -515,7 +525,7 @@ Node* unary(Token[] tokens, ref size_t i)
 Node* postfix(Token[] tokens, ref size_t i)
 {
     Node* lhs = primary(tokens, i);
-    while (consume(TokenType.LEFT_BRACKET, tokens, i))
+    while (consume('[', tokens, i))
     {
         lhs = newExpr(NodeType.DEREFERENCE, newBinOp(NodeType.ADD, lhs, assign(tokens, i)));
         expect(']', tokens, i);
@@ -550,18 +560,18 @@ Node* primary(Token[] tokens, ref size_t i)
         Node* n = new Node();
         n.name = tokens[i].name;
         i++;
-        if (!consume(TokenType.LEFT_PARENTHESE, tokens, i))
+        if (!consume('(', tokens, i))
         {
             n.op = NodeType.IDENTIFIER;
             return n;
         }
         n.op = NodeType.CALL;
-        if (consume(TokenType.RIGHT_PARENTHESE, tokens, i))
+        if (consume(')', tokens, i))
         {
             return n;
         }
         n.args ~= *assign(tokens, i);
-        while (consume(TokenType.COMMA, tokens, i))
+        while (consume(',', tokens, i))
         {
             n.args ~= *assign(tokens, i);
         }
