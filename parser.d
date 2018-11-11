@@ -50,6 +50,7 @@ enum NodeType : int
     SIZEOF,
     EQUAL,
     NOT_EQUAL,
+    DO_WHILE,
 }
 
 struct Node
@@ -355,6 +356,16 @@ Node* stmt(Token[] tokens, ref size_t i)
         node.inc = assign(tokens, i);
         expect(')', tokens, i);
         node.bdy = stmt(tokens, i);
+        return node;
+    case TokenType.DO:
+        i++;
+        node.op = NodeType.DO_WHILE;
+        node.bdy = stmt(tokens, i);
+        expect(TokenType.WHILE, tokens, i);
+        expect('(', tokens, i);
+        node.cond = assign(tokens, i);
+        expect(')', tokens, i);
+        expect(';', tokens, i);
         return node;
     case TokenType.RETURN:
         i++;

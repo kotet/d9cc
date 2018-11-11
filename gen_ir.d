@@ -47,6 +47,7 @@ enum IRType : int
     SUB_IMM, // 即値sub
     LABEL,
     LABEL_ADDRESS,
+    IF,
     UNLESS,
     JMP,
     CALL,
@@ -109,6 +110,7 @@ struct IR
             return IRInfo.LABEL;
         case IRType.JMP:
             return IRInfo.JMP;
+        case IRType.IF:
         case IRType.UNLESS:
             return IRInfo.REG_LABEL;
         case IRType.CALL:
@@ -287,6 +289,18 @@ IR[] genStatement(ref size_t regno, ref size_t label, Node* node)
         result ~= IR(IRType.KILL, genExpression(result, regno, label, node.inc));
         result ~= IR(IRType.JMP, l_loop_enter);
         result ~= IR(IRType.LABEL, l_loop_end);
+        return result;
+    }
+    if (node.op == NodeType.DO_WHILE)
+    {
+        long l_loop_enter = label;
+        label++;
+
+        result ~= IR(IRType.LABEL, l_loop_enter);
+        result ~= genStatement(regno, label, node.bdy);
+        long r_cond = genExpression(result, regno, label, node.cond);
+        result ~= IR(IRType.IF, r_cond, l_loop_enter);
+        result ~= IR(IRType.KILL, r_cond);
         return result;
     }
     if (node.op == NodeType.RETURN)

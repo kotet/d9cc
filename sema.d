@@ -178,6 +178,10 @@ Node* walk(Node* node, bool decay, ref size_t str_label, ref Variable[] globals,
         node.inc = walk(node.inc, true, str_label, globals, env, stacksize);
         node.bdy = walk(node.bdy, true, str_label, globals, env, stacksize);
         return node;
+    case DO_WHILE:
+        node.bdy = walk(node.bdy, true, str_label, globals, env, stacksize);
+        node.cond = walk(node.cond, true, str_label, globals, env, stacksize);
+        return node;
     case ADD:
     case SUB:
         node.lhs = walk(node.lhs, true, str_label, globals, env, stacksize);

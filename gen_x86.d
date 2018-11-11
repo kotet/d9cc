@@ -144,6 +144,12 @@ void gen(Function fn, ref size_t labelcnt)
             // 実効アドレスを計算する
             writefln("  lea %s, %s", registers[ir.lhs], ir.name);
             break;
+        case IRType.IF:
+            // 右辺(この場合0)との差が0ならゼロフラグが1になる
+            writefln("  cmp %s, 0", registers[ir.lhs]);
+            // ゼロフラグが0ならジャンプ
+            writefln("  jne .L%d", ir.rhs);
+            break;
         case IRType.UNLESS:
             // 右辺(この場合0)との差が0ならゼロフラグが1になる
             writefln("  cmp %s, 0", registers[ir.lhs]);
