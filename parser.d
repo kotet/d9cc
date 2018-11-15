@@ -65,6 +65,7 @@ struct Node
     Node* expr; // 式 (op == EXPRESSION_STATEMENT, RETURN)
     Node[] statements; // 文 (op == COMPOUND_STATEMENT)
 
+    bool is_extern;
     string name; // 変数名または関数名 (op == IDENTIFIER, FUNCTION)
     ubyte[] data;
 
@@ -167,6 +168,7 @@ Node* newExpr(NodeType op, Node* expr)
 // 関数とグローバル変数
 Node* topLevel(Token[] tokens, ref size_t i)
 {
+    bool is_extern = consume(TokenType.EXTERN, tokens, i);
     Type* ty = type(tokens, i);
 
     if (!ty)
@@ -207,7 +209,14 @@ Node* topLevel(Token[] tokens, ref size_t i)
     n.op = NodeType.VARIABLE_DEFINITION;
     n.type = readArray(ty, tokens, i);
     n.name = name;
-    n.data = new ubyte[](size_of(*n.type));
+    if (is_extern)
+    {
+        n.is_extern = true;
+    }
+    else
+    {
+        n.data = new ubyte[](size_of(*n.type));
+    }
     expect(';', tokens, i);
     return n;
 }
@@ -601,7 +610,7 @@ Node* primary(Token[] tokens, ref size_t i)
             t.array_length = tokens[i].str.length;
             return t;
         }();
-        n.data = cast(ubyte[]) (tokens[i].str ~ '\0');
+        n.data = cast(ubyte[])(tokens[i].str ~ '\0');
         i++;
         return n;
     }

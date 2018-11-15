@@ -13,6 +13,7 @@ struct Variable
 {
     Type* type;
     bool is_local;
+    bool is_extern;
 
     size_t offset; // ローカル変数
     string name; // グローバル変数
@@ -30,7 +31,8 @@ Variable[] semantics(ref Node[] nodes)
 
         if (node.op == NodeType.VARIABLE_DEFINITION)
         {
-            Variable var = newGlobal(node.type, node.data, str_label);
+            Variable var = newGlobal(node.type, node.data, node.name);
+            var.is_extern = node.is_extern;
             globals ~= var;
             topenv.vars[node.name] = var;
             continue;
@@ -60,11 +62,9 @@ Enviroment* newEnv(Enviroment* env)
     return e;
 }
 
-Variable newGlobal(Type* type, ubyte[] data, ref size_t str_label)
+Variable newGlobal(Type* type, ubyte[] data, string name)
 {
     Variable var;
-    string name = format(".L.str%d", str_label);
-    str_label++;
     var.type = type;
     var.is_local = false;
     var.name = name;
@@ -259,7 +259,8 @@ Node* walk(Node* node, bool decay, ref size_t str_label, ref Variable[] globals,
             return n;
         }();
     case STRING:
-        Variable var = newGlobal(node.type, node.data, str_label);
+        Variable var = newGlobal(node.type, node.data, format(".L.str%d", str_label));
+        str_label++;
         globals ~= var;
         Node* ret = new Node();
         ret.op = NodeType.GLOBAL_VARIABLE;

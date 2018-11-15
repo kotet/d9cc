@@ -18,6 +18,8 @@ void generate_x86(Variable[] globals, Function[] fns)
     writefln(".data");
     foreach (var; globals)
     {
+        if (var.is_extern)
+            continue;
         writefln("%s:", var.name);
         writefln("  .ascii \"%s\"", escape(cast(string) var.data));
     }

@@ -47,6 +47,7 @@ enum TokenType : int
     NOT_EQUAL,
     DO,
     WHILE,
+    EXTERN,
 }
 
 struct Token
@@ -67,7 +68,7 @@ Token[] tokenize(string s)
         "for" : TokenType.FOR, "else" : TokenType.ELSE, "&&" : TokenType.LOGICAL_AND,
         "||" : TokenType.LOGICAL_OR, "sizeof" : TokenType.SIZEOF, "char" : TokenType.CHAR,
         "==" : TokenType.EQUAL, "!=" : TokenType.NOT_EQUAL, "do" : TokenType.DO,
-        "while" : TokenType.WHILE,
+        "while" : TokenType.WHILE, "extern" : TokenType.EXTERN,
     ];
 
     while_loop: while (i < s.length) // Dの文字列はNull終端ではない
