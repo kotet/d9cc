@@ -4,6 +4,7 @@ module gen_x86;
 import std.stdio : writeln, writefln, stderr;
 import std.format : format;
 import core.stdc.ctype : isgraph;
+import std.algorithm : among;
 
 import gen_ir;
 import regalloc;
@@ -219,9 +220,10 @@ string escape(string s)
     string result;
     foreach (c; s)
     {
-        if (c == '\\')
+        if (c.among!('\\', '"'))
         {
-            result ~= "\\\\";
+            result ~= "\\";
+            result ~= c;
         }
         else if (isgraph(c) || c == ' ')
         {
