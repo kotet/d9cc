@@ -74,7 +74,7 @@ Token[] tokenize(string s)
     while_loop: while (i < s.length) // Dの文字列はNull終端ではない
     {
         // 空白文字をスキップ
-        if (s[i].isSpace())
+        if (s[i].isSpace() || s[i] == '\n')
         {
             i++;
             continue;

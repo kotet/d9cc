@@ -176,6 +176,7 @@ struct Function
 Function[] genIR(Node[] nodes)
 {
     Function[] result;
+    label = 1;
     foreach (node; nodes)
     {
         if (node.op == NodeType.VARIABLE_DEFINITION)
@@ -185,7 +186,6 @@ Function[] genIR(Node[] nodes)
 
         assert(node.op == NodeType.FUNCTION);
         regno = 1; // 0番はベー������レジスタとして予約
-        label = 1;
         IR[] code;
 
         foreach (i, arg; node.args)
@@ -265,6 +265,7 @@ IR[] genStatement(Node* node)
         if (node.els)
         {
             long l_else_end = label;
+            label++;
             result ~= IR(IRType.JMP, l_else_end);
             result ~= IR(IRType.LABEL, l_then_end);
             result ~= genStatement(node.els);
@@ -361,6 +362,7 @@ long genExpression(ref IR[] ins, Node* node)
         long r2 = genExpression(ins, node.rhs);
         ins ~= IR(IRType.MOV, r1, r2);
         ins ~= IR(IRType.UNLESS, r1, l);
+        ins ~= IR(IRType.KILL, r2);
 
         // true && true の時r1に入っている値は0以外
         // そのままだとあとで��るので1を返す

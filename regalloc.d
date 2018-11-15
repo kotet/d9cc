@@ -74,6 +74,7 @@ void visit(ref IR[] ins)
 /// 使われていないレジスタを探して中間表現のレジスタと紐付ける
 size_t alloc(ref size_t[size_t] reg_map, ref bool[] used, size_t ir_reg)
 {
+    // stderr.writeln(ir_reg, used, reg_map);
     if (ir_reg in reg_map)
     {
         size_t r = reg_map[ir_reg];
