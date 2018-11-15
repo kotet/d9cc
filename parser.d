@@ -42,6 +42,9 @@ enum NodeType : int
     FOR,
     COMPOUND_STATEMENT,
     EXPRESSION_STATEMENT,
+    // 複文式とか言われるGNU拡張。
+    // ({})の中に複数の文を書けて、returnした結果が式の値になる
+    STATEMENT_EXPRESSION,
     CALL,
     FUNCTION,
     LOGICAL_AND,
@@ -64,6 +67,7 @@ struct Node
     int val; // 値リテラル (op == NUM)
     Node* expr; // 式 (op == EXPRESSION_STATEMENT, RETURN)
     Node[] statements; // 文 (op == COMPOUND_STATEMENT)
+    Node* statement;
 
     bool is_extern;
     string name; // 変数名または関数名 (op == IDENTIFIER, FUNCTION)
@@ -560,9 +564,20 @@ Node* primary(Token[] tokens, ref size_t i)
     if (tokens[i].type == TokenType.LEFT_PARENTHESE)
     {
         i++;
-        Node* n = assign(tokens, i);
-        expect(')', tokens, i);
-        return n;
+        if (consume('{', tokens, i))
+        {
+            Node* n = new Node();
+            n.op = NodeType.STATEMENT_EXPRESSION;
+            n.statement = compound_stmt(tokens, i);
+            expect(')', tokens, i);
+            return n;
+        }
+        else
+        {
+            Node* n = assign(tokens, i);
+            expect(')', tokens, i);
+            return n;
+        }
     }
 
     if (tokens[i].type == TokenType.NUM)

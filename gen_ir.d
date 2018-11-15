@@ -184,8 +184,8 @@ Function[] genIR(Node[] nodes)
         }
 
         assert(node.op == NodeType.FUNCTION);
-        size_t regno = 1; // 0番はベー������レジスタとして予約
-        size_t label;
+        regno = 1; // 0番はベー������レジスタとして予約
+        label = 1;
         IR[] code;
 
         foreach (i, arg; node.args)
@@ -204,7 +204,7 @@ Function[] genIR(Node[] nodes)
             }
         }
 
-        code ~= genStatement(regno, label, node.bdy);
+        code ~= genStatement(node.bdy);
 
         Function fn;
         fn.name = node.name;
@@ -218,7 +218,12 @@ Function[] genIR(Node[] nodes)
 
 private:
 
-IR[] genStatement(ref size_t regno, ref size_t label, Node* node)
+size_t regno;
+size_t label;
+size_t return_label;
+size_t return_reg;
+
+IR[] genStatement(Node* node)
 {
     IR[] result;
     if (node.op == NodeType.VARIABLE_DEFINITION)
@@ -227,7 +232,7 @@ IR[] genStatement(ref size_t regno, ref size_t label, Node* node)
         {
             return result;
         }
-        long r_value = genExpression(result, regno, label, node.initalize);
+        long r_value = genExpression(result, node.initalize);
         long r_address = regno;
         regno++;
         result ~= IR(IRType.MOV, r_address, 0); // この0は即値ではなくベースレジスタの番号
@@ -250,19 +255,19 @@ IR[] genStatement(ref size_t regno, ref size_t label, Node* node)
     }
     if (node.op == NodeType.IF)
     {
-        long r = genExpression(result, regno, label, node.cond);
+        long r = genExpression(result, node.cond);
         long l_then_end = label;
         label++;
         result ~= IR(IRType.UNLESS, r, l_then_end);
         result ~= IR(IRType.KILL, r, -1);
-        result ~= genStatement(regno, label, node.then);
+        result ~= genStatement(node.then);
 
         if (node.els)
         {
             long l_else_end = label;
             result ~= IR(IRType.JMP, l_else_end);
             result ~= IR(IRType.LABEL, l_then_end);
-            result ~= genStatement(regno, label, node.els);
+            result ~= genStatement(node.els);
             result ~= IR(IRType.LABEL, l_else_end);
         }
         else
@@ -278,15 +283,15 @@ IR[] genStatement(ref size_t regno, ref size_t label, Node* node)
         long l_loop_end = label;
         label++;
 
-        result ~= genStatement(regno, label, node.initalize);
+        result ~= genStatement(node.initalize);
         result ~= IR(IRType.LABEL, l_loop_enter);
-        long r_cond = genExpression(result, regno, label, node.cond);
+        long r_cond = genExpression(result, node.cond);
         result ~= IR(IRType.UNLESS, r_cond, l_loop_end);
         result ~= IR(IRType.KILL, r_cond);
 
-        result ~= genStatement(regno, label, node.bdy);
+        result ~= genStatement(node.bdy);
 
-        result ~= IR(IRType.KILL, genExpression(result, regno, label, node.inc));
+        result ~= IR(IRType.KILL, genExpression(result, node.inc));
         result ~= IR(IRType.JMP, l_loop_enter);
         result ~= IR(IRType.LABEL, l_loop_end);
         return result;
@@ -297,22 +302,29 @@ IR[] genStatement(ref size_t regno, ref size_t label, Node* node)
         label++;
 
         result ~= IR(IRType.LABEL, l_loop_enter);
-        result ~= genStatement(regno, label, node.bdy);
-        long r_cond = genExpression(result, regno, label, node.cond);
+        result ~= genStatement(node.bdy);
+        long r_cond = genExpression(result, node.cond);
         result ~= IR(IRType.IF, r_cond, l_loop_enter);
         result ~= IR(IRType.KILL, r_cond);
         return result;
     }
     if (node.op == NodeType.RETURN)
     {
-        long r = genExpression(result, regno, label, node.expr);
+        long r = genExpression(result, node.expr);
+        if (return_label != 0)
+        {
+            result ~= IR(IRType.MOV, return_reg, r);
+            result ~= IR(IRType.KILL, r);
+            result ~= IR(IRType.JMP, return_label);
+            return result;
+        }
         result ~= IR(IRType.RETURN, r, -1);
         result ~= IR(IRType.KILL, r, -1);
         return result;
     }
     if (node.op == NodeType.EXPRESSION_STATEMENT)
     {
-        long r = genExpression(result, regno, label, node.expr);
+        long r = genExpression(result, node.expr);
         result ~= IR(IRType.KILL, r, -1);
         return result;
     }
@@ -320,7 +332,7 @@ IR[] genStatement(ref size_t regno, ref size_t label, Node* node)
     {
         foreach (n; node.statements)
         {
-            result ~= genStatement(regno, label, &n);
+            result ~= genStatement(&n);
         }
         return result;
     }
@@ -328,7 +340,7 @@ IR[] genStatement(ref size_t regno, ref size_t label, Node* node)
     assert(0);
 }
 
-long genExpression(ref IR[] ins, ref size_t regno, ref size_t label, Node* node)
+long genExpression(ref IR[] ins, Node* node)
 {
     with (NodeType) switch (node.op)
     {
@@ -343,10 +355,10 @@ long genExpression(ref IR[] ins, ref size_t regno, ref size_t label, Node* node)
         size_t l = label;
         label++;
 
-        long r1 = genExpression(ins, regno, label, node.lhs);
+        long r1 = genExpression(ins, node.lhs);
         ins ~= IR(IRType.UNLESS, r1, l);
 
-        long r2 = genExpression(ins, regno, label, node.rhs);
+        long r2 = genExpression(ins, node.rhs);
         ins ~= IR(IRType.MOV, r1, r2);
         ins ~= IR(IRType.UNLESS, r1, l);
 
@@ -362,13 +374,13 @@ long genExpression(ref IR[] ins, ref size_t regno, ref size_t label, Node* node)
         size_t l_ret = label;
         label++;
 
-        long r1 = genExpression(ins, regno, label, node.lhs);
+        long r1 = genExpression(ins, node.lhs);
         ins ~= IR(IRType.UNLESS, r1, l_rhs);
         ins ~= IR(IRType.IMM, r1, 1);
         ins ~= IR(IRType.JMP, l_ret);
 
         ins ~= IR(IRType.LABEL, l_rhs);
-        long r2 = genExpression(ins, regno, label, node.rhs);
+        long r2 = genExpression(ins, node.rhs);
         ins ~= IR(IRType.MOV, r1, r2);
         ins ~= IR(IRType.KILL, r2);
         ins ~= IR(IRType.UNLESS, r1, l_ret);
@@ -378,7 +390,7 @@ long genExpression(ref IR[] ins, ref size_t regno, ref size_t label, Node* node)
         return r1;
     case LOCAL_VARIABLE:
     case GLOBAL_VARIABLE:
-        long r = genLval(ins, regno, label, node);
+        long r = genLval(ins, node);
         switch (node.type.type)
         {
         case TypeName.CHAR:
@@ -393,9 +405,9 @@ long genExpression(ref IR[] ins, ref size_t regno, ref size_t label, Node* node)
         }
         return r;
     case ADDRESS:
-        return genLval(ins, regno, label, node.expr);
+        return genLval(ins, node.expr);
     case DEREFERENCE:
-        long r = genExpression(ins, regno, label, node.expr);
+        long r = genExpression(ins, node.expr);
         switch (node.type.type)
         {
         case TypeName.CHAR:
@@ -410,8 +422,8 @@ long genExpression(ref IR[] ins, ref size_t regno, ref size_t label, Node* node)
         }
         return r;
     case ASSIGN:
-        long rhs = genExpression(ins, regno, label, node.rhs);
-        long lhs = genLval(ins, regno, label, node.lhs);
+        long rhs = genExpression(ins, node.rhs);
+        long lhs = genLval(ins, node.lhs);
         IRType op = (node.type.type == TypeName.POINTER) ? IRType.STORE64 : IRType.STORE32;
         ins ~= IR(op, lhs, rhs);
         ins ~= IR(IRType.KILL, rhs, -1);
@@ -420,7 +432,7 @@ long genExpression(ref IR[] ins, ref size_t regno, ref size_t label, Node* node)
         IR ir;
         ir.op = IRType.CALL;
         foreach (arg; node.args)
-            ir.args ~= genExpression(ins, regno, label, &arg);
+            ir.args ~= genExpression(ins, &arg);
 
         long r = regno;
         regno++;
@@ -435,37 +447,49 @@ long genExpression(ref IR[] ins, ref size_t regno, ref size_t label, Node* node)
         IRType insn = (node.op == NodeType.ADD) ? IRType.ADD : IRType.SUB;
         if (node.lhs.type.type != TypeName.POINTER)
         {
-            return genBinaryOp(ins, regno, label, insn, node.lhs, node.rhs);
+            return genBinaryOp(ins, insn, node.lhs, node.rhs);
         }
         // pointer_of_T + rhs -> pointer_of_T + (rhs * sizeof(T))
-        long r_rhs = genExpression(ins, regno, label, node.rhs);
+        long r_rhs = genExpression(ins, node.rhs);
         long r_sizeof = regno;
         regno++;
         ins ~= IR(IRType.IMM, r_sizeof, size_of(*(node.lhs.type.pointer_of)));
         ins ~= IR(IRType.MUL, r_rhs, r_sizeof);
         ins ~= IR(IRType.KILL, r_sizeof);
-        long r_lhs = genExpression(ins, regno, label, node.lhs);
+        long r_lhs = genExpression(ins, node.lhs);
         ins ~= IR(insn, r_lhs, r_rhs);
         ins ~= IR(IRType.KILL, r_rhs);
         return r_lhs;
     case MUL:
-        return genBinaryOp(ins, regno, label, IRType.MUL, node.lhs, node.rhs);
+        return genBinaryOp(ins, IRType.MUL, node.lhs, node.rhs);
     case DIV:
-        return genBinaryOp(ins, regno, label, IRType.DIV, node.lhs, node.rhs);
+        return genBinaryOp(ins, IRType.DIV, node.lhs, node.rhs);
     case LESS_THAN:
-        return genBinaryOp(ins, regno, label, IRType.LESS_THAN, node.lhs, node.rhs);
+        return genBinaryOp(ins, IRType.LESS_THAN, node.lhs, node.rhs);
     case EQUAL:
-        return genBinaryOp(ins, regno, label, IRType.EQUAL, node.lhs, node.rhs);
+        return genBinaryOp(ins, IRType.EQUAL, node.lhs, node.rhs);
     case NOT_EQUAL:
-        return genBinaryOp(ins, regno, label, IRType.NOT_EQUAL, node.lhs, node.rhs);
-    default:
-        // IDENTIFIERは前プロセスで別のノードに変換されている
+        return genBinaryOp(ins, IRType.NOT_EQUAL, node.lhs, node.rhs);
+    case STATEMENT_EXPRESSION:
+        size_t orig_label = return_label;
+        size_t orig_reg = return_reg;
+        return_label = label;
+        label++;
+        size_t r_ret = regno;
+        regno++;
+        return_reg = r_ret;
+        ins ~= genStatement(node.statement);
+        ins ~= IR(IRType.LABEL, return_label);
+        return_label = orig_label;
+        return_reg = orig_reg;
+        return r_ret;
+    default: // IDENTIFIERは前プロセスで別のノードに変換されている
         error("Unknown AST Type: %s", node.op);
         assert(0);
     }
 }
 
-long genLval(ref IR[] ins, ref size_t regno, ref size_t label, Node* node)
+long genLval(ref IR[] ins, Node* node)
 {
     if (node.op == NodeType.LOCAL_VARIABLE)
     {
@@ -477,7 +501,7 @@ long genLval(ref IR[] ins, ref size_t regno, ref size_t label, Node* node)
     }
     if (node.op == NodeType.DEREFERENCE)
     {
-        return genExpression(ins, regno, label, node.expr);
+        return genExpression(ins, node.expr);
     }
     if (node.op == NodeType.GLOBAL_VARIABLE)
     {
@@ -493,11 +517,10 @@ long genLval(ref IR[] ins, ref size_t regno, ref size_t label, Node* node)
     assert(0);
 }
 
-long genBinaryOp(ref IR[] ins, ref size_t regno, ref size_t label, IRType type,
-        Node* lhs, Node* rhs)
+long genBinaryOp(ref IR[] ins, IRType type, Node* lhs, Node* rhs)
 {
-    long r_lhs = genExpression(ins, regno, label, lhs);
-    long r_rhs = genExpression(ins, regno, label, rhs);
+    long r_lhs = genExpression(ins, lhs);
+    long r_rhs = genExpression(ins, rhs);
     ins ~= IR(type, r_lhs, r_rhs);
     ins ~= IR(IRType.KILL, r_rhs);
     return r_lhs;

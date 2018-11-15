@@ -244,6 +244,10 @@ Node* walk(Node* node, bool decay, ref size_t str_label, ref Variable[] globals,
     case EXPRESSION_STATEMENT:
         node.expr = walk(node.expr, true, str_label, globals, env, stacksize);
         return node;
+    case STATEMENT_EXPRESSION:
+        node.statement = walk(node.statement, true, str_label, globals, env, stacksize);
+        node.type = new Type(TypeName.INT);
+        return node;
     case ADDRESS:
         node.expr = walk(node.expr, true, str_label, globals, env, stacksize);
         checkLval(node.expr);

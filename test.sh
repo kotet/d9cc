@@ -139,8 +139,11 @@ try 0 'int main() { return 5 != 5; }' &
 
 try 45 'int main() { int x=0; int y=0; do { y=y+x; x=x+1; } while (x < 10); return y; }' &
 
+try 5 'extern int global_arr[1]; int main() { return global_arr[0]; }' &
+
+try 8 'int main() { return 3 + ({ return 5; }); }' &
+
 wait
-try 5 'extern int global_arr[1]; int main() { return global_arr[0]; }'
 echo
 echo "＿人人人＿"
 echo "＞　OK　＜"
