@@ -77,6 +77,8 @@ int main() {
   EXPECT(3, ({ int ary[2]; *ary=1; *(ary+1)=2; return *ary + *(ary+1);}));
   EXPECT(5, ({ int x; int *p = &x; x = 5; return *p;}));
 
+  EXPECT(45, ({ int i=0; int j=0; while (i<10) { j=j+i; i=i+1; } return j;}));
+  
   EXPECT(3, ({ int ary[2]; ary[0]=1; ary[1]=2; return ary[0] + ary[0+1];}));
   EXPECT(5, ({ int x; int *p = &x; x = 5; return p[0];}));
 
@@ -103,7 +105,7 @@ int main() {
 
   EXPECT(8, ({ return 3 + ({ return 5; }); }));
 
-  EXPECT(45, ({ int i=0; int j=0; while (i<10) { j=j+i; i=i+1; } return j;}));
+  EXPECT(1, ({; return 1; }));
 
   printf("OK\n");
   return 0;

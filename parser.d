@@ -341,6 +341,9 @@ Node* stmt(Token[] tokens, ref size_t i)
     Node* node = new Node();
     switch (tokens[i].type)
     {
+    case TokenType.SEMICOLONE:
+        i++;
+        return new Node(NodeType.NULL);
     case TokenType.IF:
         i++;
         node.op = NodeType.IF;
