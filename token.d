@@ -104,6 +104,19 @@ Token[] tokenize(string s)
             continue;
         }
 
+        //文字
+
+        if (s[i] == '\'')
+        {
+            Token t;
+            t.lineno = lineno;
+            t.type = TokenType.NUM;
+            i++;
+            t.val = readChar(s, i);
+            result ~= t;
+            continue;
+        }
+
         // 複数文字トークン
         foreach (symbol, type; symbols)
         {
@@ -178,6 +191,19 @@ Token[] tokenize(string s)
 
 private:
 
+static immutable char[256] escaped = () {
+    import std.format : format;
+
+    char[256] a;
+    a[] = 0;
+    static foreach (char c; "abfnrtv")
+    {
+        a[c] = mixin(format("'\\%c'", c));
+    }
+    a['e'] = a['E'] = '\033';
+    return a;
+}();
+
 string readString(string s, ref size_t i)
 {
     string result;
@@ -197,38 +223,48 @@ string readString(string s, ref size_t i)
         }
 
         // エスケープ
-        switch (s[i])
-        {
-        case 'a': // ベル文字
-            result ~= '\a';
-            break;
-        case 'b': // バックスペース
-            result ~= '\b';
-            break;
-        case 'f': // 改ページ
-            result ~= '\f';
-            break;
-        case 'n':
-            result ~= '\n';
-            break;
-        case 'r':
-            result ~= '\r';
-            break;
-        case 't':
-            result ~= '\t';
-            break;
-        case 'v': // 垂直タブ
-            result ~= '\v';
-            break;
-        default:
-            result ~= s[i];
-            break;
-        }
+        char esc = escaped[s[i]];
+        result ~= ((esc == 0) ? s[i] : esc);
         i++;
     }
     if (s.length <= i)
     {
         error("Premature end of input");
+    }
+    i++;
+    return result;
+}
+
+int readChar(string s, ref size_t i)
+{
+    int result;
+    if (s.length <= i)
+    {
+        error("Premature end of input");
+    }
+    if (s[i] != '\\')
+    {
+        result = cast(int) s[i];
+        i++;
+    }
+    else
+    {
+        i++;
+        if (s.length <= i)
+        {
+            error("Premature end of input");
+        }
+        result = escaped[s[i]];
+        result = (result == 0) ? s[i] : result;
+        i++;
+    }
+    if (s.length <= i)
+    {
+        error("Premature end of input");
+    }
+    if (s[i] != '\'')
+    {
+        error("Unclosed character literal");
     }
     i++;
     return result;
