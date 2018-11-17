@@ -226,6 +226,10 @@ size_t return_reg;
 IR[] genStatement(Node* node)
 {
     IR[] result;
+    if (node.op == NodeType.NULL)
+    {
+        return result;
+    }
     if (node.op == NodeType.VARIABLE_DEFINITION)
     {
         if (!(node.initalize))
@@ -292,7 +296,7 @@ IR[] genStatement(Node* node)
 
         result ~= genStatement(node.bdy);
 
-        result ~= IR(IRType.KILL, genExpression(result, node.inc));
+        result ~= genStatement(node.inc);
         result ~= IR(IRType.JMP, l_loop_enter);
         result ~= IR(IRType.LABEL, l_loop_end);
         return result;
@@ -480,7 +484,7 @@ long genExpression(ref IR[] ins, Node* node)
         size_t r_ret = regno;
         regno++;
         return_reg = r_ret;
-        ins ~= genStatement(node.statement);
+        ins ~= genStatement(node.bdy);
         ins ~= IR(IRType.LABEL, return_label);
         return_label = orig_label;
         return_reg = orig_reg;

@@ -103,6 +103,8 @@ int main() {
 
   EXPECT(8, ({ return 3 + ({ return 5; }); }));
 
+  EXPECT(45, ({ int i=0; int j=0; while (i<10) { j=j+i; i=i+1; } return j;}));
+
   printf("OK\n");
   return 0;
 }

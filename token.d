@@ -48,6 +48,7 @@ enum TokenType : int
     DO,
     WHILE,
     EXTERN,
+    NEWLINE,
 }
 
 struct Token
@@ -57,11 +58,13 @@ struct Token
     string str; // 文字列リテラルデータ
     string name; // 変数名
     string input; // エラー報告用のトークン文字列
+    size_t lineno;
 }
 
 Token[] tokenize(string s)
 {
     Token[] result;
+    size_t lineno = 1;
     size_t i;
     TokenType[string] symbols = [
         "int" : TokenType.INT, "return" : TokenType.RETURN, "if" : TokenType.IF,
@@ -74,9 +77,16 @@ Token[] tokenize(string s)
     while_loop: while (i < s.length) // Dの文字列はNull終端ではない
     {
         // 空白文字をスキップ
-        if (s[i].isSpace() || s[i] == '\n')
+        if (s[i].isSpace())
         {
             i++;
+            continue;
+        }
+
+        if (s[i] == '\n')
+        {
+            i++;
+            lineno++;
             continue;
         }
 
@@ -84,6 +94,7 @@ Token[] tokenize(string s)
         if (s[i] == '"')
         {
             Token t;
+            t.lineno = lineno;
             t.type = TokenType.STRING;
             i++;
             string str = readString(s, i);
@@ -99,6 +110,7 @@ Token[] tokenize(string s)
             if ((i + symbol.length) < s.length && s[i .. (i + symbol.length)] == symbol)
             {
                 Token t;
+                t.lineno = lineno;
                 t.type = type;
                 t.input = s[i .. (i + symbol.length)];
                 i += symbol.length;
@@ -111,6 +123,7 @@ Token[] tokenize(string s)
         if (s[i].among!(aliasSeqOf!"+-*/;=(),{}<>[]&"))
         {
             Token t;
+            t.lineno = lineno;
             t.type = cast(TokenType) s[i];
             t.input = s[i .. i + 1];
 
@@ -123,6 +136,7 @@ Token[] tokenize(string s)
         if (s[i].isDigit())
         {
             Token t;
+            t.lineno = lineno;
             t.type = TokenType.NUM;
             size_t _i = i;
             t.val = nextInt(s, i);
@@ -144,6 +158,7 @@ Token[] tokenize(string s)
 
             result ~= () {
                 Token t;
+                t.lineno = lineno;
                 t.type = TokenType.IDENTIFIER;
                 t.name = name;
                 t.input = name;
@@ -156,7 +171,7 @@ Token[] tokenize(string s)
         error("Cannot tokenize: %s", s[i]);
     }
 
-    result ~= () { Token t; t.type = TokenType.EOF; return t; }();
+    result ~= () { Token t; t.lineno = lineno; t.type = TokenType.EOF; return t; }();
 
     return result;
 }

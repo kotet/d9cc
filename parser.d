@@ -54,6 +54,8 @@ enum NodeType : int
     EQUAL,
     NOT_EQUAL,
     DO_WHILE,
+    NODE,
+    NULL,
 }
 
 struct Node
@@ -67,7 +69,6 @@ struct Node
     int val; // 値リテラル (op == NUM)
     Node* expr; // 式 (op == EXPRESSION_STATEMENT, RETURN)
     Node[] statements; // 文 (op == COMPOUND_STATEMENT)
-    Node* statement;
 
     bool is_extern;
     string name; // 変数名または関数名 (op == IDENTIFIER, FUNCTION)
@@ -118,8 +119,8 @@ void expect(TokenType t, Token[] tokens, ref size_t i)
 {
     if (tokens[i].type != t)
     {
-        error("%s (%s) expected, but got %s (%s)", cast(char) t, t,
-                tokens[i].input, tokens[i].type);
+        error("Line %d: %s (%s) expected, but got %s (%s)", tokens[i].lineno,
+                cast(char) t, t, tokens[i].input, tokens[i].type);
     }
     i++;
 }
@@ -366,7 +367,18 @@ Node* stmt(Token[] tokens, ref size_t i)
         }
         node.cond = assign(tokens, i);
         expect(';', tokens, i);
-        node.inc = assign(tokens, i);
+        // スコープをしぼる
+        node.inc = newExpr(NodeType.EXPRESSION_STATEMENT, assign(tokens, i));
+        expect(')', tokens, i);
+        node.bdy = stmt(tokens, i);
+        return node;
+    case TokenType.WHILE:
+        i++;
+        node.op = NodeType.FOR;
+        node.initalize = new Node(NodeType.NULL);
+        node.inc = new Node(NodeType.NULL);
+        expect('(', tokens, i);
+        node.cond = assign(tokens, i);
         expect(')', tokens, i);
         node.bdy = stmt(tokens, i);
         return node;
@@ -568,7 +580,7 @@ Node* primary(Token[] tokens, ref size_t i)
         {
             Node* n = new Node();
             n.op = NodeType.STATEMENT_EXPRESSION;
-            n.statement = compound_stmt(tokens, i);
+            n.bdy = compound_stmt(tokens, i);
             expect(')', tokens, i);
             return n;
         }

@@ -245,7 +245,7 @@ Node* walk(Node* node, bool decay, ref size_t str_label, ref Variable[] globals,
         node.expr = walk(node.expr, true, str_label, globals, env, stacksize);
         return node;
     case STATEMENT_EXPRESSION:
-        node.statement = walk(node.statement, true, str_label, globals, env, stacksize);
+        node.bdy = walk(node.bdy, true, str_label, globals, env, stacksize);
         node.type = new Type(TypeName.INT);
         return node;
     case ADDRESS:
@@ -271,6 +271,8 @@ Node* walk(Node* node, bool decay, ref size_t str_label, ref Variable[] globals,
         ret.type = node.type;
         ret.name = var.name;
         return maybeDecay(ret, decay);
+    case NULL:
+        return node;
     default:
         error("Unknown node type: %s", node.op);
         assert(0);
