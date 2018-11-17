@@ -302,7 +302,7 @@ Type* type(Token[] tokens, ref size_t i)
         ty = () {
             Type* t = new Type();
             t.type = TypeName.POINTER;
-            t.pointer_of = ty;
+            t.pointer_to = ty;
             return t;
         }();
     }

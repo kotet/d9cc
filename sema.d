@@ -105,7 +105,7 @@ Node* maybeDecay(Node* base, bool decay)
             Node* n = new Node();
             n.op = NodeType.ADDRESS;
             Type* t = new Type(TypeName.POINTER);
-            t.pointer_of = base.type.array_of;
+            t.pointer_to = base.type.array_of;
             n.type = t;
             n.expr = base;
             return n;
@@ -220,7 +220,7 @@ Node* walk(Node* node, bool decay, ref size_t str_label, ref Variable[] globals,
         {
             error("Operand must be a pointer");
         }
-        node.type = node.expr.type.pointer_of;
+        node.type = node.expr.type.pointer_to;
         return node;
     case RETURN:
         node.expr = walk(node.expr, true, str_label, globals, env, stacksize);
@@ -251,7 +251,7 @@ Node* walk(Node* node, bool decay, ref size_t str_label, ref Variable[] globals,
     case ADDRESS:
         node.expr = walk(node.expr, true, str_label, globals, env, stacksize);
         checkLval(node.expr);
-        node.type = node.expr.type.pointer_of;
+        node.type = node.expr.type.pointer_to;
         return node;
     case SIZEOF:
         return () {

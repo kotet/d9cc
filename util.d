@@ -16,7 +16,7 @@ enum TypeName
 struct Type
 {
     TypeName type;
-    Type* pointer_of;
+    Type* pointer_to;
 
     // 配列
     Type* array_of;

@@ -455,11 +455,11 @@ long genExpression(ref IR[] ins, Node* node)
         {
             return genBinaryOp(ins, insn, node.lhs, node.rhs);
         }
-        // pointer_of_T + rhs -> pointer_of_T + (rhs * sizeof(T))
+        // pointer_to_T + rhs -> pointer_to_T + (rhs * sizeof(T))
         long r_rhs = genExpression(ins, node.rhs);
         long r_sizeof = regno;
         regno++;
-        ins ~= IR(IRType.IMM, r_sizeof, size_of(*(node.lhs.type.pointer_of)));
+        ins ~= IR(IRType.IMM, r_sizeof, size_of(*(node.lhs.type.pointer_to)));
         ins ~= IR(IRType.MUL, r_rhs, r_sizeof);
         ins ~= IR(IRType.KILL, r_sizeof);
         long r_lhs = genExpression(ins, node.lhs);
