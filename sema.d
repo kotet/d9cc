@@ -150,6 +150,7 @@ Node* walk(Node* node, bool decay, ref size_t str_label, ref Variable[] globals,
             return maybeDecay(ret, decay);
         }
     case VARIABLE_DEFINITION:
+        stacksize = roundup(stacksize, align_of(*node.type));
         stacksize += size_of(*node.type);
         node.offset = stacksize;
 

@@ -86,3 +86,27 @@ long size_of(Type t)
         return 8;
     }
 }
+
+long align_of(Type t)
+{
+    with (TypeName) switch (t.type)
+    {
+    case CHAR:
+        return 1;
+    case INT:
+        return 4;
+    case POINTER:
+        return 8;
+    default:
+        assert(t.type == TypeName.ARRAY);
+        return align_of(*t.array_of);
+    }
+}
+
+size_t roundup(size_t x, size_t alignment)
+{
+    // alignmentは2の倍数。
+    // (x + alignment - 1) - ((x + alignment -1) % alignment) と等価。
+    size_t tmp = (alignment - 1);
+    return (x + tmp) & ~tmp;
+}

@@ -10,6 +10,7 @@ import gen_ir;
 import regalloc;
 import parser;
 import sema;
+import util;
 
 public:
 
@@ -43,7 +44,8 @@ void gen(Function fn, ref size_t labelcnt)
 
     writefln("  push rbp");
     writefln("  mov rbp, rsp");
-    writefln("  sub rsp, %d", fn.stacksize);
+    // 16バイト整列は浮動小数が出てくると大事になる
+    writefln("  sub rsp, %d", roundup(fn.stacksize, 16));
 
     // 終了処理の開始位置に置くラベル
     string ret = format(".Lend%d", labelcnt);
