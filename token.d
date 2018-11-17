@@ -5,6 +5,7 @@ import std.uni : isSpace;
 import std.ascii : isDigit, isAlpha;
 import std.algorithm : among;
 import std.meta : aliasSeqOf;
+import std.format : format;
 
 import util;
 
@@ -64,7 +65,7 @@ struct Token
 Token[] tokenize(string s)
 {
     Token[] result;
-    size_t lineno = 1;
+    lineno = 1;
     size_t i;
     TokenType[string] symbols = [
         "int" : TokenType.INT, "return" : TokenType.RETURN, "if" : TokenType.IF,
@@ -88,6 +89,31 @@ Token[] tokenize(string s)
             i++;
             lineno++;
             continue;
+        }
+
+        // 行コメント
+        if ((i + 1) < s.length && s[i .. i + 2] == "//")
+        {
+            while (i < s.length && s[i] != '\n')
+                i++;
+            i++;
+            lineno++;
+            continue;
+        }
+
+        // ブロックコメント
+        if ((i + 1) < s.length && s[i .. i + 2] == "/*")
+        {
+            while ((i + 1) < s.length && s[i .. i + 2] != "*/")
+            {
+                if (s[i] == '\n')
+                    lineno++;
+                i++;
+                checkEOF(s, i + 1);
+            }
+            i += 2;
+            continue;
+
         }
 
         // 文字列
@@ -191,9 +217,9 @@ Token[] tokenize(string s)
 
 private:
 
-static immutable char[256] escaped = () {
-    import std.format : format;
+size_t lineno;
 
+static immutable char[256] escaped = () {
     char[256] a;
     a[] = 0;
     static foreach (char c; "abfnrtv")
@@ -217,20 +243,14 @@ string readString(string s, ref size_t i)
         }
 
         i++;
-        if (s.length <= i)
-        {
-            error("Premature end of input");
-        }
+        checkEOF(s, i);
 
         // エスケープ
         char esc = escaped[s[i]];
         result ~= ((esc == 0) ? s[i] : esc);
         i++;
     }
-    if (s.length <= i)
-    {
-        error("Premature end of input");
-    }
+    checkEOF(s, i);
     i++;
     return result;
 }
@@ -238,10 +258,7 @@ string readString(string s, ref size_t i)
 int readChar(string s, ref size_t i)
 {
     int result;
-    if (s.length <= i)
-    {
-        error("Premature end of input");
-    }
+    checkEOF(s, i);
     if (s[i] != '\\')
     {
         result = cast(int) s[i];
@@ -250,22 +267,31 @@ int readChar(string s, ref size_t i)
     else
     {
         i++;
-        if (s.length <= i)
-        {
-            error("Premature end of input");
-        }
+        checkEOF(s, i);
         result = escaped[s[i]];
         result = (result == 0) ? s[i] : result;
         i++;
     }
-    if (s.length <= i)
-    {
-        error("Premature end of input");
-    }
+    checkEOF(s, i);
     if (s[i] != '\'')
     {
-        error("Unclosed character literal");
+        error(format("Line %d: Unclosed character literal", lineno));
     }
     i++;
     return result;
+}
+
+private:
+
+bool checkEOF(string s, size_t i)
+{
+    if (s.length <= i)
+    {
+        error(format("Line %d: Premature end of input", lineno));
+        assert(0);
+    }
+    else
+    {
+        return true;
+    }
 }
