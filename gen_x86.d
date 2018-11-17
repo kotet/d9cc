@@ -217,13 +217,27 @@ string genLabel(size_t labelcnt)
 
 string escape(string s)
 {
+    // token.dのescapedとは中身が違うので注意
+    static immutable char[256] escaped = () {
+        import std.format : format;
+
+        char[256] a;
+        a[] = 0;
+        static foreach (char c; "bfnrt\\\'\"")
+        {
+            a[mixin(format("'\\%c'", c))] = c;
+        }
+        return a;
+    }();
+
     string result;
     foreach (c; s)
     {
-        if (c.among!('\\', '"'))
+        char esc = escaped[c];
+        if (esc != 0)
         {
             result ~= "\\";
-            result ~= c;
+            result ~= esc;
         }
         else if (isgraph(c) || c == ' ')
         {
@@ -244,7 +258,7 @@ void emitCmp(IR ir, string insn)
     writefln("  cmp %s, %s", registers[ir.lhs], registers[ir.rhs]);
     // 結果は1バイトの値なのでレジスタも8ビットのものを使う
     writefln("  %s %s", insn, registers_lower_8bits[ir.lhs]);
-    // 上位ビットは変化しないので適切にゼロ拡張してやる必要がある。
+    // 上位ビットは変化しないの���適切にゼロ拡張してやる必要がある。
     // movzbは8ビットの値を64ビットにゼロ拡張して格納する。
     // 結果的に、下のコードはlhsレジスタの上位ビットをただゼロ埋めする
     writefln("  movzb %s, %s", registers[ir.lhs], registers_lower_8bits[ir.lhs]);
