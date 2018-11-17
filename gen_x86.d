@@ -116,8 +116,8 @@ void gen(Function fn, ref size_t labelcnt)
         case IRType.ADD_IMM:
             writefln("  add %s, %d", registers[ir.lhs], ir.rhs);
             break;
-        case IRType.SUB_IMM:
-            writefln("  sub %s, %d", registers[ir.lhs], ir.rhs);
+        case IRType.BPREL:
+            writefln("  lea %s, [rbp - %d]", registers[ir.lhs], ir.rhs);
             break;
         case IRType.ADD:
             writefln("  add %s, %s", registers[ir.lhs], registers[ir.rhs]);

@@ -44,7 +44,7 @@ enum IRType : int
     STORE32_ARG, // int引数の保持
     STORE64_ARG, // ポインタ引数の保持
     ADD_IMM, // 即値add
-    SUB_IMM, // 即値sub
+    BPREL, // ベースポインタからの相対位置から実効アドレスを計算
     LABEL,
     LABEL_ADDRESS,
     IF,
@@ -101,7 +101,7 @@ struct IR
             return IRInfo.REG_REG;
         case IRType.IMM:
         case IRType.ADD_IMM:
-        case IRType.SUB_IMM:
+        case IRType.BPREL:
             return IRInfo.REG_IMM;
         case IRType.RETURN:
         case IRType.KILL:
@@ -185,7 +185,7 @@ Function[] genIR(Node[] nodes)
         }
 
         assert(node.op == NodeType.FUNCTION);
-        regno = 1; // 0番はベー������レジスタとして予約
+        regno = 1; // 0番はベースレジスタとして予約
         IR[] code;
 
         foreach (i, arg; node.args)
@@ -239,8 +239,7 @@ IR[] genStatement(Node* node)
         long r_value = genExpression(result, node.initalize);
         long r_address = regno;
         regno++;
-        result ~= IR(IRType.MOV, r_address, 0); // この0は即値ではなくベースレジスタの番号
-        result ~= IR(IRType.SUB_IMM, r_address, node.offset);
+        result ~= IR(IRType.BPREL, r_address, node.offset);
         switch (node.type.type)
         {
         case TypeName.CHAR:
@@ -501,8 +500,7 @@ long genLval(ref IR[] ins, Node* node)
     {
         long r = regno;
         regno++;
-        ins ~= IR(IRType.MOV, r, 0);
-        ins ~= IR(IRType.SUB_IMM, r, node.offset);
+        ins ~= IR(IRType.BPREL, r, node.offset);
         return r;
     }
     if (node.op == NodeType.DEREFERENCE)
