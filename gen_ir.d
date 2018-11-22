@@ -91,18 +91,9 @@ Function[] genIR(Node[] nodes)
 
         foreach (i, arg; node.args)
         {
-            switch (arg.type.type)
-            {
-            case TypeName.CHAR:
-                code ~= IR(IRType.STORE8_ARG, arg.offset, i);
-                break;
-            case TypeName.POINTER:
-                code ~= IR(IRType.STORE64_ARG, arg.offset, i);
-                break;
-            default:
-                code ~= IR(IRType.STORE32_ARG, arg.offset, i);
-                break;
-            }
+            IRType insn = chooseInsn(&arg, IRType.STORE8_ARG,
+                    IRType.STORE32_ARG, IRType.STORE64_ARG);
+            code ~= IR(insn, arg.offset, i);
         }
 
         code ~= genStatement(node.bdy);
@@ -141,18 +132,10 @@ IR[] genStatement(Node* node)
         long r_address = regno;
         regno++;
         result ~= IR(IRType.BPREL, r_address, node.offset);
-        switch (node.type.type)
-        {
-        case TypeName.CHAR:
-            result ~= IR(IRType.STORE8, r_address, r_value);
-            break;
-        case TypeName.POINTER:
-            result ~= IR(IRType.STORE64, r_address, r_value);
-            break;
-        default:
-            result ~= IR(IRType.STORE32, r_address, r_value);
-            break;
-        }
+
+        IRType insn = chooseInsn(node, IRType.STORE8, IRType.STORE32, IRType.STORE64);
+        result ~= IR(insn, r_address, r_value);
+
         result ~= IR(IRType.KILL, r_address);
         result ~= IR(IRType.KILL, r_value);
         return result;
@@ -297,35 +280,19 @@ long genExpression(ref IR[] ins, Node* node)
     case LOCAL_VARIABLE:
     case GLOBAL_VARIABLE:
         long r = genLval(ins, node);
-        switch (node.type.type)
-        {
-        case TypeName.CHAR:
-            ins ~= IR(IRType.LOAD8, r, r);
-            break;
-        case TypeName.POINTER:
-            ins ~= IR(IRType.LOAD64, r, r);
-            break;
-        default:
-            ins ~= IR(IRType.LOAD32, r, r);
-            break;
-        }
+
+        IRType insn = chooseInsn(node, IRType.LOAD8, IRType.LOAD32, IRType.LOAD64);
+        ins ~= IR(insn, r, r);
+
         return r;
     case ADDRESS:
         return genLval(ins, node.expr);
     case DEREFERENCE:
         long r = genExpression(ins, node.expr);
-        switch (node.type.type)
-        {
-        case TypeName.CHAR:
-            ins ~= IR(IRType.LOAD8, r, r);
-            break;
-        case TypeName.POINTER:
-            ins ~= IR(IRType.LOAD64, r, r);
-            break;
-        default:
-            ins ~= IR(IRType.LOAD32, r, r);
-            break;
-        }
+
+        IRType insn = chooseInsn(node, IRType.LOAD8, IRType.LOAD32, IRType.LOAD64);
+        ins ~= IR(insn, r, r);
+
         return r;
     case ASSIGN:
         long rhs = genExpression(ins, node.rhs);
@@ -429,4 +396,19 @@ long genBinaryOp(ref IR[] ins, IRType type, Node* lhs, Node* rhs)
     ins ~= IR(type, r_lhs, r_rhs);
     ins ~= IR(IRType.KILL, r_rhs);
     return r_lhs;
+}
+
+IRType chooseInsn(Node* node, IRType i8, IRType i32, IRType i64)
+{
+    long size = size_of(*node.type);
+    if (size == 1)
+    {
+        return i8;
+    }
+    if (size == 4)
+    {
+        return i32;
+    }
+    assert(size == 8);
+    return i64;
 }
