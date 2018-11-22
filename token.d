@@ -1,7 +1,7 @@
 module token;
 
 import std.stdio : stderr;
-import std.uni : isSpace;
+import std.uni : isWhite;
 import std.ascii : isDigit, isAlpha;
 import std.algorithm : among;
 import std.meta : aliasSeqOf;
@@ -79,7 +79,7 @@ Token[] tokenize(string s)
     while_loop: while (i < s.length) // Dの文字列はNull終端ではない
     {
         // 空白文字をスキップ
-        if (s[i].isSpace())
+        if (s[i].isWhite())
         {
             i++;
             continue;
@@ -208,7 +208,7 @@ Token[] tokenize(string s)
             continue;
         }
 
-        error("Cannot tokenize: %s", s[i]);
+        error("Cannot tokenize: %s (%d)", s[i], cast(int) s[i]);
     }
 
     result ~= () { Token t; t.lineno = lineno; t.type = TokenType.EOF; return t; }();
