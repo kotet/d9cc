@@ -5,6 +5,7 @@ import std.stdio : stderr;
 
 import gen_ir;
 import util;
+import irdump;
 
 public:
 // 関数呼び出し前後で保存されることが保証されているレジスタを使ってレジスタの無駄な退避をなくす

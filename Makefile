@@ -12,6 +12,6 @@ test: d9cc tmp.c
 	@gcc -static -o tmp-test tmp-test.s tmp-test2.o
 	@./tmp-test
 clean:
-	rm -f d9cc *o *s tmp*
+	rm -f d9cc *o *.s tmp*
 
 .PHONY: test clean debug

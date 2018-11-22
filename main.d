@@ -7,6 +7,7 @@ import gen_ir;
 import regalloc;
 import gen_x86;
 import util;
+import irdump;
 
 int main(string[] args)
 {
@@ -53,7 +54,7 @@ int main(string[] args)
             {
                 stderr.writefln("%s():", fn.name);
                 foreach (i, ir; fn.irs)
-                    stderr.writefln("%3d:  %s", i, ir);
+                    stderr.writefln("%3d:  %s", i, ir.toString());
             }
         }
 
@@ -65,7 +66,7 @@ int main(string[] args)
             {
                 stderr.writefln("%s():", fn.name);
                 foreach (i, ir; fn.irs)
-                    stderr.writefln("%3d:  %s", i, ir);
+                    stderr.writefln("%3d:  %s", i, ir.toString());
             }
         }
 
