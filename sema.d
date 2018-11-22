@@ -263,6 +263,15 @@ Node* walk(Node* node, bool decay, ref size_t str_label, ref Variable[] globals,
             n.val = cast(int) size_of(*expr.type);
             return n;
         }();
+    case ALIGNOF:
+        return () {
+            Node* expr = walk(node.expr, false, str_label, globals, env, stacksize);
+            Node* n = new Node();
+            n.op = NodeType.NUM;
+            n.type = new Type(TypeName.INT);
+            n.val = cast(int) align_of(*expr.type);
+            return n;
+        }();
     case STRING:
         Variable var = newGlobal(node.type, node.data, format(".L.str%d", str_label));
         str_label++;

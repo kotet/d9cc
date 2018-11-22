@@ -55,6 +55,7 @@ enum NodeType : int
     NOT_EQUAL,
     DO_WHILE,
     NODE,
+    ALIGNOF,
     NULL,
 }
 
@@ -553,9 +554,12 @@ Node* unary(Token[] tokens, ref size_t i)
     }
     if (consume(TokenType.SIZEOF, tokens, i))
     {
-        return newExpr(NodeType.SIZEOF, mul(tokens, i));
+        return newExpr(NodeType.SIZEOF, unary(tokens, i));
     }
-
+    if (consume(TokenType.ALIGNOF, tokens, i))
+    {
+        return newExpr(NodeType.ALIGNOF, unary(tokens, i));
+    }
     return postfix(tokens, i);
 
 }

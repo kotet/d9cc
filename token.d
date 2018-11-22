@@ -50,6 +50,7 @@ enum TokenType : int
     WHILE,
     EXTERN,
     NEWLINE,
+    ALIGNOF,
 }
 
 struct Token
@@ -71,8 +72,8 @@ Token[] tokenize(string s)
         "int" : TokenType.INT, "return" : TokenType.RETURN, "if" : TokenType.IF,
         "for" : TokenType.FOR, "else" : TokenType.ELSE, "&&" : TokenType.LOGICAL_AND,
         "||" : TokenType.LOGICAL_OR, "sizeof" : TokenType.SIZEOF, "char" : TokenType.CHAR,
-        "==" : TokenType.EQUAL, "!=" : TokenType.NOT_EQUAL, "do" : TokenType.DO,
-        "while" : TokenType.WHILE, "extern" : TokenType.EXTERN,
+        "==" : TokenType.EQUAL, "!=" : TokenType.NOT_EQUAL, "do" : TokenType.DO, "while"
+        : TokenType.WHILE, "extern" : TokenType.EXTERN, "_Alignof" : TokenType.ALIGNOF,
     ];
 
     while_loop: while (i < s.length) // Dの文字列はNull終端ではない
