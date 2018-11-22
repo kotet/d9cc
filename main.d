@@ -1,4 +1,5 @@
 import std.stdio : writeln, stderr;
+import std.file : readText;
 
 import token;
 import parser;
@@ -11,30 +12,32 @@ import irdump;
 
 int main(string[] args)
 {
-    string input;
+    string filename;
     bool dump_ir1 = false;
     bool dump_ir2 = false;
 
     if (args.length == 3 && args[1] == "-dump-ir1")
     {
         dump_ir1 = true;
-        input = args[2];
+        filename = args[2];
     }
     else if (args.length == 3 && args[1] == "-dump-ir2")
     {
         dump_ir2 = true;
-        input = args[2];
+        filename = args[2];
     }
     else if (args.length != 2)
     {
-        stderr.writeln("Usage: d9cc [-dump-ir] <code>");
+        stderr.writeln("Usage: d9cc [-dump-ir] <file>");
 
         return 1;
     }
     else
     {
-        input = args[1];
+        filename = args[1];
     }
+
+    string input = readText(filename);
 
     try
     {
