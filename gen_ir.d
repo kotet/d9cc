@@ -320,7 +320,7 @@ long genExpression(ref IR[] ins, Node* node)
         IRType insn = (node.op == NodeType.ADD) ? IRType.ADD : IRType.SUB;
         if (node.lhs.type.type != TypeName.POINTER)
         {
-            return genBinaryOp(ins, insn, node.lhs, node.rhs);
+            return genBinaryOp(ins, insn, node);
         }
         // pointer_to_T + rhs -> pointer_to_T + (rhs * sizeof(T))
         long r_rhs = genExpression(ins, node.rhs);
@@ -334,15 +334,15 @@ long genExpression(ref IR[] ins, Node* node)
         ins ~= IR(IRType.KILL, r_rhs);
         return r_lhs;
     case MUL:
-        return genBinaryOp(ins, IRType.MUL, node.lhs, node.rhs);
+        return genBinaryOp(ins, IRType.MUL, node);
     case DIV:
-        return genBinaryOp(ins, IRType.DIV, node.lhs, node.rhs);
+        return genBinaryOp(ins, IRType.DIV, node);
     case LESS_THAN:
-        return genBinaryOp(ins, IRType.LESS_THAN, node.lhs, node.rhs);
+        return genBinaryOp(ins, IRType.LESS_THAN, node);
     case EQUAL:
-        return genBinaryOp(ins, IRType.EQUAL, node.lhs, node.rhs);
+        return genBinaryOp(ins, IRType.EQUAL, node);
     case NOT_EQUAL:
-        return genBinaryOp(ins, IRType.NOT_EQUAL, node.lhs, node.rhs);
+        return genBinaryOp(ins, IRType.NOT_EQUAL, node);
     case STATEMENT_EXPRESSION:
         size_t orig_label = return_label;
         size_t orig_reg = return_reg;
@@ -389,10 +389,10 @@ long genLval(ref IR[] ins, Node* node)
     assert(0);
 }
 
-long genBinaryOp(ref IR[] ins, IRType type, Node* lhs, Node* rhs)
+long genBinaryOp(ref IR[] ins, IRType type, Node* node)
 {
-    long r_lhs = genExpression(ins, lhs);
-    long r_rhs = genExpression(ins, rhs);
+    long r_lhs = genExpression(ins, node.lhs);
+    long r_rhs = genExpression(ins, node.rhs);
     ins ~= IR(type, r_lhs, r_rhs);
     ins ~= IR(IRType.KILL, r_rhs);
     return r_lhs;
