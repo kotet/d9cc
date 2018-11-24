@@ -100,7 +100,6 @@ int main() {
   EXPECT(4, ({ int x[4]; return _Alignof x; }));
   EXPECT(8, ({ int *x[4]; return _Alignof x; }));
 
-
   EXPECT(5, ({ char x = 5; return x; }));
   EXPECT(42, ({ int x = 0; char *p = &x; p[0] = 42; return x; }));
 
