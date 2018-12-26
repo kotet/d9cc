@@ -1,0 +1,9 @@
+{
+	"description": "A small C compiler written in D",
+	"license": "MIT",
+	"authors": [
+		"kotet"
+	],
+	"copyright": "Copyright © 2018, kotet",
+	"name": "d9cc"
+}
